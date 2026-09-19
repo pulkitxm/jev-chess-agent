@@ -2,6 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeRequest, chooseMove } from '../src/jev.js';
 import { semanticRequest } from '../src/strategy.js';
+import { compactRequest } from '../src/compact.js';
+
+test('compact advice distinguishes saving a queen from saving a pawn when every move loses material', () => {
+  const history = ['e4', 'c5', 'Nf3', 'd6', 'Nc3', 'Nc6', 'Bc4', 'Be6', 'b3', 'Bxc4', 'bxc4', 'e6', 'O-O', 'Nge7', 'Bb2', 'Na5', 'd3', 'Nac6', 'd4', 'Nxd4', 'Nxd4', 'cxd4', 'Qxd4', 'Qd7', 'e5', 'Nc6'];
+  const { request, moves } = makeRequest(history, undefined, { extendChecks: true });
+  const compact = compactRequest(request, moves);
+  assert.match(compact.questions.move.criteria.a1d1, /INFERIOR TACTICAL OUTCOME: 5 material units worse/);
+  assert.match(compact.questions.move.criteria.d4e4, /PREFERRED TACTICAL GROUP/);
+  assert.match(compact.state.tacticalComparison.explanation, /limits the loss to 1 units/);
+  assert.deepEqual(Object.keys(compact.questions.move.criteria), moves.map(move => move.uci));
+});
 
 test('plain-language strategy keeps every legal choice and the final model answer', async () => {
   const history = ['e4', 'e6', 'Nf3', 'd5', 'exd5', 'exd5', 'Bb5+', 'c6'];
