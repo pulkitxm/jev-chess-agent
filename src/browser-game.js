@@ -66,6 +66,8 @@ export async function startMaximum(page, signal) {
     if (await page.getByRole('button', { name: 'Resign', exact: true }).isVisible()) return;
     const onboarding = page.getByRole('button', { name: 'Start', exact: true });
     if (await onboarding.isVisible()) { await onboarding.click(); continue; }
+    const newGame = page.getByRole('button', { name: 'New Game', exact: true });
+    if (await newGame.isVisible()) { await newGame.click(); continue; }
     const play = page.getByRole('button', { name: 'Play', exact: true });
     if (await play.isVisible()) {
       if (!page.url().includes('/Komodo25')) throw new Error('Maximum is not selected');

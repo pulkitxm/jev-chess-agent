@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { autoplay, validateProgress } from '../src/autoplay.js';
 import { fromHistory, candidates } from '../src/chess.js';
-import { readVisibleGame } from '../src/browser-game.js';
+import { readVisibleGame, startMaximum } from '../src/browser-game.js';
 
 const decision = history => {
   const chess = fromHistory(history);
@@ -67,4 +67,19 @@ test('canvas boards use rendered SAN including figurine icons and detect review 
     document.querySelector('.node-highlight-content').classList.add('selected');
     assert.equal(readVisibleGame().latest, false);
   } finally { delete globalThis.document; }
+});
+
+test('startup creates a fresh game when the site remembers an unfinished one', async () => {
+  let state = 'New Game';
+  const clicked = [];
+  const page = {
+    goto: async () => {},
+    url: () => 'https://www.chess.com/play/computer/Komodo25',
+    getByRole: (role, { name }) => ({
+      isVisible: async () => name === state,
+      click: async () => { clicked.push(name); state = name === 'New Game' ? 'Play' : 'Resign'; }
+    })
+  };
+  await startMaximum(page);
+  assert.deepEqual(clicked, ['New Game', 'Play']);
 });
