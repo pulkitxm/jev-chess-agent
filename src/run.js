@@ -6,10 +6,12 @@ import { chooseMove } from './jev.js';
 import { gameResult } from './chess.js';
 import { autoplay } from './autoplay.js';
 import { browserGame, startMaximum } from './browser-game.js';
+import { exportRecording } from './recording.js';
 
 const { values } = parseArgs({ options: {
   demo: { type: 'boolean', default: false },
   headless: { type: 'boolean', default: false },
+  '4k': { type: 'boolean', default: false },
   'max-moves': { type: 'string' },
   seconds: { type: 'string' },
   output: { type: 'string' }
@@ -25,10 +27,14 @@ const stop = () => controller.abort(new Error('Stopped by user'));
 process.once('SIGINT', stop);
 process.once('SIGTERM', stop);
 const profile = resolve('data/runner-profile');
+const size = values['4k'] ? { width: 3840, height: 2160 } : { width: 1280, height: 900 };
 const context = await chromium.launchPersistentContext(profile, {
   channel: 'chrome', headless: values.headless,
-  viewport: { width: 1280, height: 900 },
-  recordVideo: { dir: directory, size: { width: 1280, height: 900 } }
+  viewport: size,
+  recordVideo: { dir: directory, size }
+});
+if (values['4k']) await context.addInitScript(() => {
+  document.addEventListener('DOMContentLoaded', () => { document.documentElement.style.zoom = '2'; }, { once: true });
 });
 const page = context.pages()[0] || await context.newPage();
 page.setDefaultTimeout(5000);
@@ -67,5 +73,9 @@ try {
   await writeFile(resolve(directory, 'summary.json'), JSON.stringify({ ...outcome, complete: outcome?.reason === 'Game finished' && outcome?.result !== '*', gameUrl: page.url(), gameReadySeconds, firstMoveSeconds, elapsedSeconds: (Date.now() - started) / 1000 }, null, 2), { mode: 0o600 });
   await context.close();
   if (videoPath) await rename(videoPath, resolve(directory, 'demo.webm'));
+  if (videoPath && values['4k']) {
+    console.log('Exporting the live recording to 3840 x 2160 MP4.');
+    await exportRecording(resolve(directory, 'demo.webm'), resolve(directory, 'match-4k.mp4'), gameReadySeconds || 0);
+  }
   console.log(`Recording and game: ${directory}`);
 }
