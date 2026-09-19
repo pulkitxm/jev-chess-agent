@@ -25,6 +25,7 @@ const positions = new Map();
 for (const file of files.sort()) {
   for (const line of (await readFile(file, 'utf8')).trim().split('\n').filter(Boolean)) {
     const row = JSON.parse(line);
+    if (row.engineAdvice || row.strategy === 'engine-review') continue;
     const t = row.move?.tactics;
     if (!t || !(t.worstMaterialChangeInListedExchanges < 0 || t.opponentCanCheckmateImmediately)) continue;
     const id = createHash('sha256').update(JSON.stringify(row.history)).digest('hex');
