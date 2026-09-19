@@ -7,6 +7,7 @@ import { gameResult } from './chess.js';
 import { autoplay } from './autoplay.js';
 import { browserGame, startEngine, engines } from './browser-game.js';
 import { exportRecording } from './recording.js';
+import { loadSession } from './session.js';
 
 const { values } = parseArgs({ options: {
   demo: { type: 'boolean', default: false },
@@ -53,6 +54,8 @@ let firstMoveSeconds;
 let gameReadySeconds;
 const started = Date.now();
 try {
+  const cookieCount = await loadSession(context);
+  if (cookieCount) console.log(`Loaded ${cookieCount} chess.com session cookies from the private local file.`);
   console.log('Opening a dedicated Chrome profile. Jev selects moves; the program runs the game and records video.');
   await startEngine(page, controller.signal, values.opponent);
   gameReadySeconds = (Date.now() - started) / 1000;
