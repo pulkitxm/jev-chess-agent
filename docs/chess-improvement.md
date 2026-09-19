@@ -94,7 +94,7 @@ Every decision included evaluations for the complete legal move list. The latest
 
 The full local recording export completed successfully. Artifacts are under `data/runs/2026-09-19T23-20-25-772Z`: `game.pgn`, `decisions.jsonl`, `summary.json`, `verification.json`, and `match-4k.mp4`. The 3840 by 2160 video is upscaled from continuous 1920 by 1080 browser capture.
 
-The six latest rules-only trials produced zero wins and six losses. The one complete assisted trial produced one win. These different methods must be reported separately, and a single assisted game does not establish a reliable win rate or a win against Maximum.
+The six rules-only trials preceding the assisted run produced zero wins and six losses. The one complete assisted trial produced one win. These different methods must be reported separately, and a single assisted game does not establish a reliable win rate or a win against Maximum.
 
 ## Proving a winning sacrifice without Stockfish
 
@@ -105,6 +105,8 @@ The extended tactical calculation now checks forcing mates in two. After a check
 Compact prompts prioritize these proven wins over material preservation and include a mating continuation for every defense. Every legal option remains available, and Jev still makes the final choice. The same live diagnostic then selected `Qb8+` without Stockfish advice, taking approximately 4.6 seconds. The before and after decisions are saved locally as `data/diagnostics/queen-sacrifice-before.json` and `data/diagnostics/queen-sacrifice-after.json`.
 
 All 64 tests and the extension build pass, including checks that distinguish a forced win from a cooperative mating line. This corrects a specific sacrifice failure. It does not establish perfect sacrifices, general mate search, improved model weights, or an engine-free Advanced win.
+
+A subsequent full compact-review match against Advanced lost by checkmate after 36 Jev decisions. Every white move passed the final-choice, position, and history audit, with no external engine advice. The game and decision logs are under `data/runs/2026-09-19T23-31-15-620Z`. This brings the latest rules-only sequence to seven losses and zero wins. The sacrifice regression improved, but a full-game strength improvement remains unproven.
 
 ## Further experiments
 
