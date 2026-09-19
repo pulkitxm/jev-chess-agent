@@ -12,6 +12,7 @@ const { values } = parseArgs({ options: {
   demo: { type: 'boolean', default: false },
   headless: { type: 'boolean', default: false },
   '4k': { type: 'boolean', default: false },
+  strategy: { type: 'string', default: 'original' },
   'max-moves': { type: 'string' },
   seconds: { type: 'string' },
   output: { type: 'string' }
@@ -20,6 +21,7 @@ const maxMoves = values['max-moves'] === undefined ? (values.demo ? 8 : Infinity
 const maxSeconds = values.seconds === undefined ? (values.demo ? 120 : Infinity) : Number(values.seconds);
 if ((maxMoves !== Infinity && !Number.isInteger(maxMoves)) || maxMoves < 1 || (maxMoves !== Infinity && maxMoves > 1000) || Number.isNaN(maxSeconds) || maxSeconds < 1) throw new Error('Invalid move or time limit');
 if (!process.env.TYPESAFE_API_KEY) throw new Error('Set TYPESAFE_API_KEY in .env');
+if (!['original', 'semantic'].includes(values.strategy)) throw new Error('Unknown decision strategy');
 const directory = resolve(values.output || `data/runs/${new Date().toISOString().replace(/[:.]/g, '-')}`);
 await mkdir(directory, { recursive: true, mode: 0o700 });
 const controller = new AbortController();
@@ -56,7 +58,7 @@ try {
   console.log('Maximum game started. Press Ctrl+C to stop and save the recording.');
   outcome = await autoplay({ ...game, save, signal: controller.signal, maxMoves, maxSeconds,
     choose: async history => {
-      const decision = await chooseMove(history, { apiKey: process.env.TYPESAFE_API_KEY, model: process.env.TYPESAFE_MODEL || 'jev-1.13.0', signal: controller.signal });
+      const decision = await chooseMove(history, { apiKey: process.env.TYPESAFE_API_KEY, model: process.env.TYPESAFE_MODEL || 'jev-1.13.0', signal: controller.signal, strategy: values.strategy });
       firstMoveSeconds ??= (Date.now() - started) / 1000;
       await appendFile(resolve(directory, 'decisions.jsonl'), JSON.stringify({ at: new Date().toISOString(), history, ...decision }) + '\n', { mode: 0o600 });
       return decision;

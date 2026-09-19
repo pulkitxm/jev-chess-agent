@@ -1,5 +1,6 @@
 import { candidates, describeBoard, fromHistory } from './chess.js';
 import { tacticalConsequences } from './tactics.js';
+import { semanticRequest } from './strategy.js';
 
 function moveFacts(move, limit = 6) {
   const replies = [...move.tactics.forcingReplies].sort((a, b) => Number(b.opponentCheckmates) - Number(a.opponentCheckmates) || a.netMaterialChangeAfterExchange - b.netMaterialChangeAfterExchange);
@@ -51,7 +52,7 @@ export function makeRequest(history, model = 'jev-1.13.0') {
   return { request: boundRequest(request, moves), moves, fen: chess.fen() };
 }
 
-export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchImpl = fetch, signal } = {}) {
+export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchImpl = fetch, signal, strategy = 'original' } = {}) {
   if (!apiKey) throw new Error('Set TYPESAFE_API_KEY in the local .env file');
   const { request, moves, fen } = makeRequest(history, model);
   const started = Date.now();
@@ -72,7 +73,8 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
     rounds.push({ choice: selected.uci, confidence: answer.confidence, usage: result.usage });
     return { result, answer, selected };
   };
-  let picked = await ask(request);
+  if (!['original', 'semantic'].includes(strategy)) throw new Error('Unknown decision strategy');
+  let picked = await ask(strategy === 'semantic' ? semanticRequest(request, moves) : request);
   const warned = picked.selected.tactics;
   const saferExists = moves.some(move => !move.tactics.opponentCanCheckmateImmediately && move.tactics.worstMaterialChangeInListedExchanges >= 0);
   if (saferExists && (warned.opponentCanCheckmateImmediately || warned.worstMaterialChangeInListedExchanges < 0)) {
@@ -100,6 +102,7 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
     model: picked.result.model,
     usage,
     decisionRounds: rounds,
+    strategy,
     elapsedMs: Date.now() - started
   };
 }
