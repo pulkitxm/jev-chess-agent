@@ -3,6 +3,7 @@ const pieces = chess => chess.board().flat().filter(Boolean);
 const distance = (a, b) => Math.max(Math.abs(a.charCodeAt(0) - b.charCodeAt(0)), Math.abs(Number(a[1]) - Number(b[1])));
 const promotionSquare = pawn => `${pawn.square[0]}${pawn.color === 'w' ? '8' : '1'}`;
 const ranksLeft = pawn => Math.abs(Number(promotionSquare(pawn)[1]) - Number(pawn.square[1]));
+const centerDistance = square => Math.min(...['d4', 'e4', 'd5', 'e5'].map(center => distance(square, center)));
 
 export function passedPawns(chess, color) {
   const pawns = pieces(chess).filter(piece => piece.type === 'p');
@@ -42,7 +43,10 @@ export function positionFacts(chess, moves) {
         const target = promotionSquare(remaining[0]);
         const before = distance(king.square, target);
         const after = distance(move.to, target);
-        if (after !== before) facts.push(`KING DEFENSE: moves ${after < before ? 'closer to' : 'farther from'} the enemy passed pawn's promotion square ${target}.`);
+        if (after !== before && Math.max(before, after) > ranksLeft(remaining[0])) facts.push(`KING DEFENSE: moves ${after < before ? 'closer to' : 'farther from'} the enemy passed pawn's promotion square ${target}.`);
+      }
+      if (endgame && move.piece === 'k' && centerDistance(move.to) < centerDistance(move.from)) {
+        facts.push('KING ACTIVITY: brings the king closer to the center in a queenless ending.');
       }
       for (const pawn of remaining.filter(pawn => ranksLeft(pawn) <= 3)) {
         const block = `${pawn.square[0]}${Number(pawn.square[1]) + (enemy === 'w' ? 1 : -1)}`;
