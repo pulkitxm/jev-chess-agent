@@ -27,6 +27,16 @@ For a full game:
 npm run play
 ```
 
+For a complete live match with a native 4K, 16:9 MP4 export:
+
+```sh
+npm run record:4k
+```
+
+This single command starts Chrome without a visible window, opens Maximum, lets Jev choose every move, records the actual browser at 3840 by 2160, and exports `match-4k.mp4` alongside the PGN and decision logs. The page uses 200% zoom for readability. The export removes the loading sequence, keeps the entire match and result screen, and uses H.264 at 30 frames per second. It does not upscale a smaller recording. Browser capture may repeat frames between screen updates. No audio is recorded. The FFmpeg encoder is installed with the project dependencies.
+
+To show the browser window while recording, use `npm run play -- --4k`. To choose the local output folder, use `npm run record:4k -- --output data/my-match`. Each match makes paid TypeSafe requests. A complete recording does not imply a win. Check `complete` in `summary.json`; an interrupted or failed game still saves its available footage.
+
 The full runner plays through the game result without a default move or time cutoff. Use Ctrl+C to stop early and finalize the video. Optional `--max-moves` and `--seconds` explicitly limit a run; such a recording is incomplete unless the game ends first.
 
 ```sh
