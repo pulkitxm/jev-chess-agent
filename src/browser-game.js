@@ -57,7 +57,7 @@ export function browserGame(page) {
   return { observe, play };
 }
 
-export const engines = { maximum: { name: 'Maximum', path: 'Komodo25' }, beginner: { name: 'Beginner', path: 'Komodo1' } };
+export const engines = { maximum: { name: 'Maximum', path: 'Komodo25' }, beginner: { name: 'Beginner', path: 'Komodo1' }, advanced: { name: 'Advanced', path: 'Komodo12' } };
 
 export async function startEngine(page, signal, opponent = 'maximum') {
   const engine = engines[opponent];
