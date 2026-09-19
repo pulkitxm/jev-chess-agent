@@ -83,3 +83,15 @@ test('startup creates a fresh game when the site remembers an unfinished one', a
   await startMaximum(page);
   assert.deepEqual(clicked, ['New Game', 'Play']);
 });
+
+test('waits for the final move when game controls disappear before notation updates', async () => {
+  let reads = 0, saved;
+  const result = await autoplay({
+    observe: async () => ({ history: ++reads === 1 ? ['f3', 'e5', 'g4'] : ['f3', 'e5', 'g4', 'Qh4#'], active: false, latest: true }),
+    choose: async () => { throw new Error('Must not choose after game end'); },
+    play: async () => {}, save: async chess => { saved = chess.history(); }
+  });
+  assert.equal(result.reason, 'Game finished');
+  assert.equal(result.result, '0-1');
+  assert.equal(saved.at(-1), 'Qh4#');
+});

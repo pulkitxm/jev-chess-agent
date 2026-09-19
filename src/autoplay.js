@@ -23,7 +23,21 @@ export async function autoplay({ observe, choose, play, save, log = console.log,
     history = chess.history();
     if (history.length !== lastSaved) { await save(chess); lastSaved = history.length; }
     if (chess.isGameOver()) return { result: gameResult(chess), decisions, history, reason: 'Game finished' };
-    if (!observed.active) return { result: '*', decisions, history, reason: 'Board is no longer active' };
+    if (!observed.active) {
+      for (let attempt = 0; attempt < 8; attempt++) {
+        await sleep(150);
+        check();
+        const final = await observe();
+        const finalChess = validateProgress(history, final.history);
+        history = finalChess.history();
+        await save(finalChess);
+        lastSaved = history.length;
+        if (finalChess.isGameOver()) return { result: gameResult(finalChess), decisions, history, reason: 'Game finished' };
+        if (final.active) break;
+        if (attempt === 7) return { result: '*', decisions, history, reason: 'Board is no longer active' };
+      }
+      continue;
+    }
     if (!observed.latest) throw new Error('Board is showing an earlier move');
     if (chess.turn() !== color) { await sleep(100); continue; }
     if (decisions >= maxMoves) return { result: '*', decisions, history, reason: 'Move limit reached' };
