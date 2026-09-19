@@ -90,7 +90,7 @@ The assisted strategy uses Stockfish's established alpha-beta search and NNUE ev
 
 The match audit also checks every legal move's engine record, the shared search iteration, and each displayed continuation's legal moves and notation. Its `engineAudit` output reports engine versions, search-depth bounds, reviewed decisions, and how many final choices followed the first recommendation. It rejects missing or duplicated candidates and inconsistent continuations. This checks the recorded evidence, not the objective optimality of an engine evaluation.
 
-## Verified assisted win
+## Verified assisted wins
 
 On September 20, 2026, the first complete engine-review match beat Advanced (1600), engine level 12 (`Komodo12`), by checkmate with `32.Qg7#`. The result was `1-0`, using Jev `jev-1.13.0` with Stockfish 19 advice. All 32 played white moves matched Jev's final API choice, and all 32 choices matched Stockfish's first recommendation. This demonstrates a working assisted system, not independent chess strength from Jev.
 
@@ -98,7 +98,11 @@ Every decision included evaluations for the complete legal move list. The latest
 
 The full local recording export completed successfully. Artifacts are under `data/runs/2026-09-19T23-20-25-772Z`: `game.pgn`, `decisions.jsonl`, `summary.json`, `verification.json`, and `match-4k.mp4`. The 3840 by 2160 video is upscaled from continuous 1920 by 1080 browser capture.
 
-The six rules-only trials preceding the assisted run produced zero wins and six losses. The one complete assisted trial produced one win. These different methods must be reported separately, and a single assisted game does not establish a reliable win rate or a win against Maximum.
+A second complete assisted game on the same day also beat Advanced, this time with `29.Rxe8#` after `28.Qe8+ Rxe8`. It used a different opening, beginning `1.e4 Nf6`, and included `17.Rf7 Qxf7 18.Nxf7 Kxf7`, trading a rook and knight for the opponent's queen. The opponent was again `Komodo12`, and the game used the same Jev and Stockfish versions. All 29 final decisions followed the first engine recommendation. Complete search depths ranged from 11 to 17, and the match took approximately 260 seconds, including startup. The full recording and logs are under `data/runs/2026-09-19T23-40-02-036Z`.
+
+Both wins passed the stronger audit, which replayed all 61 final choices and the displayed engine continuations while checking complete legal-move coverage. All 66 automated tests and the extension build pass. The local combined audit is `data/diagnostics/assisted-validation.json`.
+
+The two complete assisted trials produced two wins. The seven latest rules-only trials produced zero wins and seven losses. These different methods must be reported separately. Two assisted games demonstrate another successful run, not a reliable win-rate estimate or a win against Maximum.
 
 ## Proving a winning sacrifice without Stockfish
 
@@ -111,6 +115,8 @@ Compact prompts prioritize these proven wins over material preservation and incl
 All 64 tests and the extension build pass, including checks that distinguish a forced win from a cooperative mating line. This corrects a specific sacrifice failure. It does not establish perfect sacrifices, general mate search, improved model weights, or an engine-free Advanced win.
 
 A subsequent full compact-review match against Advanced lost by checkmate after 36 Jev decisions. Every white move passed the final-choice, position, and history audit, with no external engine advice. The game and decision logs are under `data/runs/2026-09-19T23-31-15-620Z`. This brings the latest rules-only sequence to seven losses and zero wins. The sacrifice regression improved, but a full-game strength improvement remains unproven.
+
+The final sacrifice from the second assisted win was then replayed using compact-review with no engine advice. Jev independently selected `Qe8+`, and the bounded proof verified `Rxe8 Rxe8#` against every legal defense. This different position had not been used to tune the mate proof or prompts. The diagnostic took approximately 2.1 seconds and is recorded at `data/diagnostics/advanced-win-queen-sacrifice.json`. It verifies the sacrifice handling on another position, not an engine-free full-game win.
 
 ## Further experiments
 
