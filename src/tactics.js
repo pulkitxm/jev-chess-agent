@@ -32,7 +32,7 @@ function afterThreat(chess, sufficientGain, cache) {
         if (!reply.captured && !reply.promotion) continue;
         chess.move(reply);
         try {
-          const recovery = reply.captured ? recapture(chess, reply.to, 4, cache) : { gain: 0, line: [] };
+          const recovery = reply.captured || reply.promotion ? recapture(chess, reply.to, 4, cache) : { gain: 0, line: [] };
           const net = gain(response) - gain(reply) + recovery.gain;
           if (net < worst.gain) worst = { gain: net, line: [response.san, reply.san, ...recovery.line] };
         } finally { chess.undo(); }
@@ -63,7 +63,7 @@ export function tacticalConsequences(chess, candidate, { extendChecks = false, e
         const quiet = extendThreats && quietThreat(chess, reply);
         if (!quiet && !reply.captured && !reply.promotion && !/[+#]$/.test(reply.san)) continue;
         const extended = extendChecks && chess.isCheck() && !chess.isCheckmate();
-        const recovery = extended || quiet ? afterThreat(chess, gain(reply), exchangeCache) : reply.captured ? recapture(chess, reply.to, 6, exchangeCache) : { gain: 0, line: [] };
+        const recovery = extended || quiet ? afterThreat(chess, gain(reply), exchangeCache) : reply.captured || reply.promotion ? recapture(chess, reply.to, 6, exchangeCache) : { gain: 0, line: [] };
         threats.push({
           reply: reply.san,
           capturedPiece: reply.captured || null,

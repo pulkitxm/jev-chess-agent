@@ -108,3 +108,16 @@ test('quiet fork analysis distinguishes a lost knight from a forcing rook escape
     assert.equal(chess.fen(), original);
   }
 });
+
+test('an immediately capturable promotion is not counted as an unavoidable queen gain', () => {
+  const chess = new Chess('7k/8/8/8/8/7K/p7/2R5 w - - 0 1');
+  const candidate = candidates(chess).find(move => move.notation === 'Kh4');
+  const facts = tacticalConsequences(chess, candidate, { extendChecks: true, extendThreats: true });
+  assert.equal(facts.worstMaterialChangeInListedExchanges, 0);
+  const promotions = facts.forcingReplies.filter(reply => reply.reply.startsWith('a1='));
+  assert.equal(promotions.length, 4);
+  for (const promotion of promotions) {
+    assert.equal(promotion.netMaterialChangeAfterExchange, 1);
+    assert.equal(promotion.exchangeLine.at(-1), 'Rxa1');
+  }
+});
