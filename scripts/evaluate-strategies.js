@@ -9,8 +9,8 @@ const limit = Number(values.limit);
 if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('Limit must be 1 to 100');
 const strategies = values.strategies.split(',');
 if (strategies.some(strategy => !['original', 'semantic', 'foresight', 'deliberate', 'development', 'compact', 'compact-review', 'engine-review'].includes(strategy))) throw new Error('Unknown strategy');
-const outcome = move => ({ mate: move.checkmate ? 1 : move.tactics.opponentCanCheckmateImmediately || move.tactics.opponentCanForceMateAfterReply ? -1 : 0, material: move.tactics.worstMaterialChangeInListedExchanges });
-const compare = (a, b) => a.mate - b.mate || a.material - b.material;
+const outcome = move => ({ mate: move.checkmate ? 2 : move.tactics.forcedMate ? 1 : move.tactics.opponentCanCheckmateImmediately || move.tactics.opponentCanForceMateAfterReply ? -1 : 0, material: move.tactics.worstMaterialChangeInListedExchanges });
+const compare = (a, b) => a.mate - b.mate || (a.mate === 0 ? a.material - b.material : 0);
 const files = [];
 async function scan(path) {
   for (const item of await readdir(path, { withFileTypes: true }).catch(() => [])) {

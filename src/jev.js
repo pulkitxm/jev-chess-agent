@@ -10,10 +10,11 @@ function moveFacts(move, limit = 6) {
   return {
     san: move.notation,
     checkmate: move.checkmate,
+    forcedMate: move.tactics.forcedMate,
     draw: move.draw,
     allowsMate: move.tactics.opponentCanCheckmateImmediately || move.tactics.opponentCanForceMateAfterReply,
     materialChange: move.tactics.worstMaterialChangeInListedExchanges,
-    queenWarning: queenLoss(move) ? 'Our queen can be captured and the examined exchange does not recover its full material value.' : null,
+    queenWarning: !move.tactics.forcedMate && queenLoss(move) ? 'Our queen can be captured and the examined exchange does not recover its full material value.' : null,
     replyCount: move.tactics.opponentLegalReplies.length,
     forcingReplyCount: replies.length,
     shownReplies: replies.slice(0, limit).map(reply => ({ san: reply.reply, materialChange: reply.netMaterialChangeAfterExchange, mate: reply.opponentCheckmates, line: reply.exchangeLine.join(' ') }))
@@ -99,7 +100,7 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
   let picked = await ask(initial);
   const warned = picked.selected.tactics;
   const saferExists = moves.some(move => !move.tactics.opponentCanCheckmateImmediately && !move.tactics.opponentCanForceMateAfterReply && move.tactics.worstMaterialChangeInListedExchanges >= 0);
-  const tacticalWarning = queenLoss(picked.selected) || warned.opponentCanCheckmateImmediately || warned.opponentCanForceMateAfterReply || (saferExists && warned.worstMaterialChangeInListedExchanges < 0);
+  const tacticalWarning = !warned.forcedMate && (queenLoss(picked.selected) || warned.opponentCanCheckmateImmediately || warned.opponentCanForceMateAfterReply || (saferExists && warned.worstMaterialChangeInListedExchanges < 0));
   if (engineAdvice) {
     if (picked.selected.uci !== engineAdvice.lines.find(line => line.rank === 1).move) picked = await ask(engineRequest(request, moves, engineAdvice, picked.selected.uci));
   } else if (strategy === 'deliberate' || strategy === 'compact-review' || tacticalWarning) {

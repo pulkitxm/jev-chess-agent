@@ -1,3 +1,5 @@
+import { checkingMateProof } from './mate.js';
+
 const values = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
 const gain = move => (values[move.captured] || 0) + (move.promotion ? values[move.promotion] - 1 : 0);
 
@@ -78,6 +80,7 @@ export function tacticalConsequences(chess, candidate, { extendChecks = false, e
       } finally { chess.undo(); }
     }
     return {
+      forcedMate: extendChecks ? checkingMateProof(chess) : null,
       immediateMaterialGain: gain(move),
       opponentCanCheckmateImmediately: threats.some(reply => reply.opponentCheckmates),
       opponentCanForceMateAfterReply: threats.some(reply => reply.forcesMateAfterReply),
