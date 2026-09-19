@@ -1,0 +1,20 @@
+{
+  "name": "jev-chess-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "build": "node scripts/build.js",
+    "test": "node --test",
+    "choose": "node --env-file-if-exists=.env src/cli.js"
+  },
+  "dependencies": {
+    "chess.js": "1.4.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "jsdom": "26.1.0"
+  },
+  "engines": { "node": ">=22" }
+}
