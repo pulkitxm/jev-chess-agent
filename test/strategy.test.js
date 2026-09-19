@@ -41,3 +41,19 @@ test('separate perspectives inform a final Jev choice without narrowing legal mo
   assert.equal(Object.keys(requests[1].questions.move.criteria).length, 20);
   assert.equal(result.move.uci, 'f2f3');
 });
+
+test('compact strategy preserves all legal options and honors a warned final choice', async () => {
+  const requests = [];
+  const history = ['e4', 'e6', 'Nf3', 'd5', 'exd5', 'exd5', 'Bb5+', 'c6'];
+  const result = await chooseMove(history, { apiKey: 'test', strategy: 'compact', fetchImpl: async (url, options) => {
+    requests.push(JSON.parse(options.body));
+    return { ok: true, json: async () => ({ answers: { move: { choice: 'b5c6', confidence: 0.5 } } }) };
+  } });
+  assert.equal(requests.length, 2);
+  assert.equal(result.move.uci, 'b5c6');
+  const legal = makeRequest(history).moves.map(move => move.uci);
+  for (const request of requests) {
+    assert.deepEqual(Object.keys(request.questions.move.criteria), legal);
+    assert.match(request.questions.move.criteria.b5c6, /LOSE/);
+  }
+});

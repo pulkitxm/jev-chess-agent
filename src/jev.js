@@ -1,6 +1,7 @@
 import { candidates, describeBoard, fromHistory } from './chess.js';
 import { tacticalConsequences } from './tactics.js';
 import { semanticRequest } from './strategy.js';
+import { compactRequest } from './compact.js';
 
 function moveFacts(move, limit = 6) {
   const replies = [...move.tactics.forcingReplies].sort((a, b) => Number(b.opponentCheckmates) - Number(a.opponentCheckmates) || a.netMaterialChangeAfterExchange - b.netMaterialChangeAfterExchange);
@@ -60,7 +61,7 @@ export function makeRequest(history, model = 'jev-1.13.0', { extendChecks = fals
 export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchImpl = fetch, signal, strategy = 'original' } = {}) {
   if (!apiKey) throw new Error('Set TYPESAFE_API_KEY in the local .env file');
   const started = Date.now();
-  const { request, moves, fen } = makeRequest(history, model, { extendChecks: ['foresight', 'deliberate', 'development'].includes(strategy) });
+  const { request, moves, fen } = makeRequest(history, model, { extendChecks: ['foresight', 'deliberate', 'development', 'compact'].includes(strategy) });
   const rounds = [];
   const ask = async payload => {
     const response = await fetchImpl('https://api.typesafe.ai/v1/systemone', {
@@ -82,8 +83,8 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
     rounds.push({ choice: selected.uci, confidence: answer.confidence, usage: result.usage, perspectives });
     return { result, answer, selected };
   };
-  if (!['original', 'semantic', 'foresight', 'deliberate', 'development'].includes(strategy)) throw new Error('Unknown decision strategy');
-  const initial = strategy !== 'original' ? semanticRequest(request, moves, { development: strategy === 'development' }) : request;
+  if (!['original', 'semantic', 'foresight', 'deliberate', 'development', 'compact'].includes(strategy)) throw new Error('Unknown decision strategy');
+  const initial = strategy === 'compact' ? compactRequest(request, moves) : strategy !== 'original' ? semanticRequest(request, moves, { development: strategy === 'development' }) : request;
   if (strategy === 'deliberate') {
     initial.questions.defense = { ...initial.questions.move, instructions: 'Which legal move best defends our king, queen, and other pieces against the strongest opponent reply? Prefer preventing mate and serious material losses. Compare the supplied exchange warnings. Do not favor a check or capture merely because it is forcing.' };
     initial.questions.coordination = { ...initial.questions.move, instructions: 'Which legal move most improves the coordination and activity of our pieces without neglecting concrete threats? Prefer central control, developing undeveloped pieces, king safety, and useful pawn advances. Avoid purposeless repeated moves and premature attacks. Consider the complete board.' };
@@ -108,7 +109,7 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
         criteria: {}
       } }
     }, moves);
-    picked = await ask(strategy !== 'original' ? semanticRequest(review, moves, { development: strategy === 'development' }) : review);
+    picked = await ask(strategy === 'compact' ? compactRequest(review, moves) : strategy !== 'original' ? semanticRequest(review, moves, { development: strategy === 'development' }) : review);
   }
   const usage = rounds.reduce((sum, round) => ({ input_tokens: sum.input_tokens + (round.usage?.input_tokens || 0), output_tokens: sum.output_tokens + (round.usage?.output_tokens || 0) }), { input_tokens: 0, output_tokens: 0 });
   return {
