@@ -32,6 +32,19 @@ The compact-review strategy adds an independent defensive choice and then asks J
 
 Use `npm run play:advanced -- --strategy compact-review` to try this version.
 
+## Full-game results
+
+Two fresh Advanced (1600), engine level 12 games were played in visible Chrome on September 20, 2026:
+
+| Strategy | Result | Jev moves |
+| --- | --- | --- |
+| compact | Loss by checkmate | 44 |
+| compact-review | Loss by checkmate | 65 |
+
+Both PGNs were checked for checkmate. Every recorded white move matched the final Jev API choice. Both runs recorded the complete match for a 3840 by 2160 export, upscaled from 1920 by 1080 capture. The second game reached a pawn endgame. More moves before defeat are not proof of higher playing strength. These trials produced no Advanced win and no Maximum win.
+
+The existing default strategy is unchanged. These remain experimental alternatives, with results too limited to claim reliable superiority.
+
 ## What the service supports
 
 The current Jev model accepts text only. It does not accept board screenshots, audio, or video. TypeSafe does not offer customer fine-tuning or LoRA. Supplying training examples in a request changes the context, not the model weights.
