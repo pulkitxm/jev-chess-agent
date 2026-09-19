@@ -169,3 +169,13 @@ The cookie file and the Python environment under `data/session-tools` are ignore
 Run `npm run play:advanced` for one match against Advanced (1600), engine level 12, in visible Chrome with a 4K video export. Jev chooses every move using the development strategy.
 
 Experimental shorter prompts are available with `npm run play:advanced -- --strategy compact` or `--strategy compact-review`. The second version asks for a separate defensive assessment before Jev makes its final choice. See [measured results and limitations](docs/chess-improvement.md).
+
+The compact prompts now explicitly distinguish the best detected tactical outcomes from worse ones, including positions where every move loses material. Compact-review also examines quiet attacks by cheaper pieces and knight forks through every legal response and the next opponent capture or mate. These limited calculations can take several seconds in crowded positions. Every legal move remains available, and Jev's final choice is still honored.
+
+Run a bounded sequence against Advanced, stopping on the first audited win:
+
+```sh
+npm run attempt:win -- --opponent advanced --strategy compact-review --games 3
+```
+
+Audit an existing completed match with `node scripts/audit-match.js data/runs/<timestamp>`. The audit checks the PGN result, every white decision's position and history, and each played move against Jev's final answer. It rejects incomplete games, substituted moves, and inconsistent results. A successful audit can confirm a loss or draw as well as a win; inspect `won`.

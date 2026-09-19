@@ -57,7 +57,24 @@ Sources:
 - https://docs.typesafe.ai/model-jaggedness/jev-1.13
 - https://docs.typesafe.ai/patterns/composite-scoring
 
-## The next useful experiments
+## Tactical comparison and quiet-threat follow-up
+
+Two further Advanced matches on September 20 exposed separate problems:
+
+| Implementation | Result | Jev moves |
+| --- | --- | --- |
+| Original compact-review, unchanged rerun | Loss by checkmate | 30 |
+| Explicit comparison of tactical outcomes | Loss by checkmate | 27 |
+
+Both results passed the position, history, and final-choice audit. Recordings and raw decision logs remain local under `data/runs/2026-09-19T22-48-58-277Z` and `data/runs/2026-09-19T22-51-13-858Z`.
+
+In the first game, `14.Rad1` lost the queen for a knight even though moving the queen limited the detected loss to one pawn. Explicitly labeling the preferred tactical group changed a replayed Jev choice to `Qe4`, reducing the detected loss from six units to one. Every legal move stayed available. The revised prompt also avoided the detected loss on all six eligible historical regression positions, averaging 1,629 milliseconds per decision. Those positions are development data and do not measure independent playing strength.
+
+In the second game, `18.Bf4` looked harmless to the exchange checker, but the quiet reply `...d4` forced a piece loss. Compact-review now extends quiet pawn attacks, attacks on more valuable pieces, and knight forks through every legal response and the next opponent capture or mate. The same position then received a two-unit loss warning, and a replayed Jev decision selected `b3`, which had no loss detected by those checks. That replay took approximately 11.6 seconds. The calculations are bounded tactical assistance, with no external chess engine, opening book, candidate filtering, or substituted move.
+
+These two corrected decisions do not establish a win rate. Full-game validation of the expanded quiet-threat version is separate from those replays.
+
+## Further experiments
 
 1. Build a fixed, independent tactical test set covering forks, pins, hanging queens, mate defense, promotion, and endgames. Lichess publishes CC0 puzzle data with solution moves and themes. Use solutions only for offline grading, never to choose live moves. Its puzzle FEN is before the opponent's first move, so apply that first move before testing the solver.
 2. Compare compact prompts with separate Jev judgments for tactical danger and positional improvement. Always let a final Jev choice see all legal moves. More questions must earn their extra latency through measured improvement.
