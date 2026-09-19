@@ -37,3 +37,18 @@ test('rejects substituted moves, stale decisions, extra decisions, and false res
     assert.throws(() => auditMatch(match));
   }
 });
+
+test('engine-assisted results cannot be mislabeled as engine-free', () => {
+  const match = fixture();
+  match.summary.engineAssisted = true;
+  for (const decision of match.decisions) {
+    decision.strategy = 'engine-review';
+    decision.engineAdvice = { engine: 'Stockfish fixture', lines: [{ move: decision.move.uci }] };
+  }
+  assert.equal(auditMatch(match).engineAssisted, true);
+  match.summary.engineAssisted = false;
+  assert.throws(() => auditMatch(match), /assistance label/);
+  match.summary.engineAssisted = true;
+  delete match.decisions[0].engineAdvice;
+  assert.throws(() => auditMatch(match), /Missing engine assistance/);
+});

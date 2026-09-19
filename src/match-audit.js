@@ -21,5 +21,7 @@ export function auditMatch({ pgn, decisions, summary }) {
   if (index !== decisions.length) throw new Error('Decision count does not match the recorded game');
   const result = gameResult(chess);
   if (!summary.complete || !chess.isGameOver() || summary.result !== result || chess.getHeaders().Result !== result) throw new Error('Incomplete or inconsistent game result');
-  return { result, won: result === '1-0' && chess.isCheckmate() && chess.turn() === 'b', verifiedMoves: true, engineAssisted: decisions.some(decision => Boolean(decision.engineAdvice)), plies: history.length, decisions: index, strategies: [...new Set(decisions.map(decision => decision.strategy))] };
+  const engineAssisted = decisions.some(decision => Boolean(decision.engineAdvice));
+  if (summary.engineAssisted !== undefined && summary.engineAssisted !== engineAssisted) throw new Error('Engine assistance label does not match the decision records');
+  return { result, won: result === '1-0' && chess.isCheckmate() && chess.turn() === 'b', verifiedMoves: true, engineAssisted, plies: history.length, decisions: index, strategies: [...new Set(decisions.map(decision => decision.strategy))] };
 }
