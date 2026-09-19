@@ -76,7 +76,7 @@ try {
   await page.screenshot({ path: resolve(directory, 'error-screen.png') }).catch(() => {});
   if (!controller.signal.aborted) process.exitCode = 1;
 } finally {
-  await writeFile(resolve(directory, 'summary.json'), JSON.stringify({ ...outcome, opponent: engine.name, headless: false, complete: outcome?.reason === 'Game finished' && outcome?.result !== '*', gameUrl: page.url(), gameReadySeconds, firstMoveSeconds, elapsedSeconds: (Date.now() - started) / 1000 }, null, 2), { mode: 0o600 });
+  await writeFile(resolve(directory, 'summary.json'), JSON.stringify({ ...outcome, opponent: engine.name, opponentPath: engine.path, strategy: values.strategy, model: process.env.TYPESAFE_MODEL || 'jev-1.13.0', headless: false, complete: outcome?.reason === 'Game finished' && outcome?.result !== '*', gameUrl: page.url(), gameReadySeconds, firstMoveSeconds, elapsedSeconds: (Date.now() - started) / 1000 }, null, 2), { mode: 0o600 });
   await context.close();
   if (videoPath) await rename(videoPath, resolve(directory, 'demo.webm'));
   if (videoPath && values['4k']) {
