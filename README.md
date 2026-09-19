@@ -167,3 +167,5 @@ The exporter selects Chrome's last-used profile. To specify one, use `npm run se
 The cookie file and the Python environment under `data/session-tools` are ignored by Git. The runner automatically imports the default cookie file before navigating. To use a different private file, set `CHESS_SESSION_FILE` to its path in the ignored `.env`; do not paste cookie values into tracked configuration. The runner rejects cookies outside chess.com and files readable by other users. An imported session does not guarantee that Chrome will pass site verification. LocalStorage and other sites' sessions are not exported.
 
 Run `npm run play:advanced` for one match against Advanced (1600), engine level 12, in visible Chrome with a 4K video export. Jev chooses every move using the development strategy.
+
+Experimental shorter prompts are available with `npm run play:advanced -- --strategy compact` or `--strategy compact-review`. The second version asks for a separate defensive assessment before Jev makes its final choice. See [measured results and limitations](docs/chess-improvement.md).

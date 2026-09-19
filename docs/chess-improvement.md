@@ -26,6 +26,12 @@ On September 20, 2026, five eligible historical positions were available. The de
 
 This is a small, selected regression set. It measures compliance with limited tactical facts, not objectively best moves, an Elo rating, or a match win rate. These positions are development data. They must not be presented as an independent benchmark.
 
+## Focused defensive review
+
+The compact-review strategy adds an independent defensive choice and then asks Jev for the final move with every legal option still available. On a second run with six eligible positions, including one from the ongoing Advanced match, compact avoided five detected losses and compact-review avoided all six. Average times were 1,475 and 1,799 milliseconds respectively. Timing runs had concurrent local work, so these are observations rather than a controlled latency benchmark. The new sixth position is development data too, not a held-out test.
+
+Use `npm run play:advanced -- --strategy compact-review` to try this version.
+
 ## What the service supports
 
 The current Jev model accepts text only. It does not accept board screenshots, audio, or video. TypeSafe does not offer customer fine-tuning or LoRA. Supplying training examples in a request changes the context, not the model weights.
