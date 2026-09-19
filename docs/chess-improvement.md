@@ -86,6 +86,16 @@ Position descriptions now identify material balance, passed pawns, blockades, ki
 
 Run it with `npm run play:advanced:assisted`. The original compact-review command remains available for engine-free comparisons.
 
+## Verified assisted win
+
+On September 20, 2026, the first complete engine-review match beat Advanced (1600), engine level 12 (`Komodo12`), by checkmate with `32.Qg7#`. The result was `1-0`, using Jev `jev-1.13.0` with Stockfish 19 advice. All 32 played white moves matched Jev's final API choice, and all 32 choices matched Stockfish's first recommendation. This demonstrates a working assisted system, not independent chess strength from Jev.
+
+Every decision included evaluations for the complete legal move list. The latest complete search depths ranged from 10 to 18. The match took approximately 281 seconds, including startup. The PGN, decision history, terminal result, and assistance label passed the match audit. All 60 automated tests and the extension build passed.
+
+The full local recording export completed successfully. Artifacts are under `data/runs/2026-09-19T23-20-25-772Z`: `game.pgn`, `decisions.jsonl`, `summary.json`, `verification.json`, and `match-4k.mp4`. The 3840 by 2160 video is upscaled from continuous 1920 by 1080 browser capture.
+
+The six latest rules-only trials produced zero wins and six losses. The one complete assisted trial produced one win. These different methods must be reported separately, and a single assisted game does not establish a reliable win rate or a win against Maximum.
+
 ## Further experiments
 
 1. Build a fixed, independent tactical test set covering forks, pins, hanging queens, mate defense, promotion, and endgames. Lichess publishes CC0 puzzle data with solution moves and themes. Use solutions only for offline grading, never to choose live moves. Its puzzle FEN is before the opponent's first move, so apply that first move before testing the solver.
