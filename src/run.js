@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { mkdir, writeFile, appendFile } from 'node:fs/promises';
+import { mkdir, writeFile, appendFile, rename } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { chooseMove } from './jev.js';
@@ -33,6 +33,7 @@ const context = await chromium.launchPersistentContext(profile, {
 const page = context.pages()[0] || await context.newPage();
 page.setDefaultTimeout(5000);
 const video = page.video();
+const videoPath = video ? await video.path() : null;
 const save = async chess => {
   chess.header('Event', 'Jev versus Maximum', 'Site', 'Chess.com', 'White', 'Jev', 'Black', 'Maximum', 'Result', gameResult(chess));
   await writeFile(resolve(directory, 'game.pgn'), chess.pgn(), { mode: 0o600 });
@@ -60,6 +61,6 @@ try {
 } finally {
   await writeFile(resolve(directory, 'summary.json'), JSON.stringify({ ...outcome, elapsedSeconds: (Date.now() - started) / 1000 }, null, 2), { mode: 0o600 });
   await context.close();
-  if (video) { await video.saveAs(resolve(directory, 'demo.webm')); await video.delete(); }
+  if (videoPath) await rename(videoPath, resolve(directory, 'demo.webm'));
   console.log(`Recording and game: ${directory}`);
 }

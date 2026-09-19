@@ -4,37 +4,52 @@ A local chess.com bot-game player. Jev selects every move from the complete lega
 
 **Playing strength is experimental. A win against Maximum (3200) has not been established.** Reliable clicking and legal moves do not imply strong chess play.
 
-## Run
+## Run automatically
 
 Requires Node.js 22 or newer and desktop Google Chrome.
 
 ```sh
 npm ci
-npm run build
-cp .env.example .env
+npx playwright install ffmpeg
 ```
 
-Put your TypeSafe key in `.env`, then start the local service:
+If `.env` does not exist, copy `.env.example` to `.env` and add your TypeSafe key. Keep an existing configured `.env`.
 
 ```sh
+npm run demo
+```
+
+This launches a dedicated Chrome profile, opens Maximum, starts a bot game, plays up to eight Jev moves, and saves a real browser recording. No chat interaction is needed between turns. The default demo stops after eight decisions or two minutes of play.
+
+For a full game:
+
+```sh
+npm run play
+```
+
+The full runner stops at game end, 150 Jev moves, or 15 minutes of play. Use Ctrl+C to stop early and finalize the video.
+
+```sh
+npm run demo -- --max-moves 5 --seconds 90
+npm run play -- --headless --max-moves 50 --seconds 300
+```
+
+Each run saves `demo.webm`, `game.pgn`, `decisions.jsonl`, and `summary.json` under `data/runs/<timestamp>/`. The terminal prints the exact folder. Setup time is separate from the play time limit. The video captures the browser viewport, not the desktop or microphone.
+
+The runner uses its own profile at `data/runner-profile`. It does not access your usual Chrome profile or copy your login cookies. It can play as a guest when chess.com permits this. Site challenges or login requirements may prevent automatic startup. Only one runner can use the profile at a time.
+
+Jev chooses the moves through TypeSafe. A normal program handles watching, validation, clicks, polling, recording, and stopping. The only model call between turns is the Jev request itself.
+
+## Optional dashboard and extension
+
+```sh
+npm run build
 npm start
 ```
 
-If `.env` already exists, keep it instead of running the copy command. Never put your key in the extension, a commit, or a screenshot.
+Open [the dashboard](http://127.0.0.1:4318) for the local pairing code. In `chrome://extensions`, enable Developer mode, load `dist/extension`, and pair through its popup. Start a fresh bot game, choose your color, then use **Play automatically** or **Play one move**. Use **Pause** to stop.
 
-Open [the dashboard](http://127.0.0.1:4318). It shows whether a key is configured and provides the local pairing code.
-
-1. Open `chrome://extensions` in Chrome.
-2. Enable Developer mode, click **Load unpacked**, and select `dist/extension` in this project.
-3. Open [Maximum](https://www.chess.com/play/computer/Komodo25). Reload the page if it was already open when the extension was loaded.
-4. Start a fresh standard bot game. Select a color and use a mode without a timer for initial testing.
-5. Open the **Jev Chess Agent** extension popup. Paste the dashboard pairing code and select the color you actually play.
-6. Choose **Play one move** to check the setup, then **Play automatically** to continue.
-7. Use **Pause** in the popup to stop. A decision already sent to TypeSafe can still incur a charge, but its late response will not start another move.
-
-Chrome displays a debugger banner while the extension controls the board. Cancelling that banner or opening DevTools on the controlled tab may detach the controller and pause play. Keep the board visible and avoid making moves manually while the agent runs.
-
-The debugger permission allows browser control. The implementation checks the tab's URL before every board operation and only accepts chess.com computer-game routes. Human games are unsupported and rejected.
+The extension uses Chrome's debugger permission for clicks and supports DOM-rendered piece boards. The standalone runner also supports canvas themes by reading the visible move list and is the preferred way to record demos. Human games are rejected.
 
 ## How it works, in ordinary language
 
@@ -46,7 +61,7 @@ The system has three jobs:
 | chess.js | Checks the rules and remembers the full game |
 | Jev through TypeSafe | Chooses which legal move to play |
 
-The extension reads piece elements from the rendered page. It does not send screenshots or rely on a vision model. This is cheaper and less ambiguous than guessing squares from pixels.
+The standalone runner reconstructs the position from the visible move list, including piece icons. This works with both canvas and DOM board themes. It does not send screenshots or use a vision model. The extension reads rendered piece elements instead.
 
 The rules library produces all legal moves. Each option includes its normal chess notation, the pieces remaining after the move, any capture, and whether it gives check, checkmate, or a draw. These are rule-based facts. No Stockfish, engine score, opening book, move ranking, or best-move override is used.
 
@@ -96,12 +111,12 @@ Dashboard game cards and counters are held in memory and reset when the service 
 - Page changes, animations that never settle, navigation, covered squares, and unconfirmed clicks stop play instead of guessing.
 - The extension has a 150-move limit per run, and the service has its separate request limit.
 - Special moves are supported by the rules library. Live site behavior for castling, en passant, and the promotion picker still needs dedicated browser verification.
-- Chrome may pause background work, and chess.com may change its markup. This is a local prototype, not an unattended hosted service.
+- Chess.com may change its markup or require manual site interaction. This is a local prototype, not an unattended hosted service.
 
 ## Verification
 
 The automated suite covers legal move enumeration, castling, en passant, underpromotion, checkmate detection, invalid model answers, board coordinates, duplicate starts, quick opponent replies, pause during a request, navigation restrictions, local pairing, request limits, and PGN recording. Browser control tests use a simulated Chrome interface and a real chess rules library.
 
-Live checks confirmed that the TypeSafe key works and Jev selected `e4` and `Nf3`. Those moves were played through browser controls against Maximum, which replied `e5` and `Nc6`. This verifies the API and real board interaction, not an autonomous extension game or playing strength.
+A complete initial game was played against Maximum using the Jev service and interactive browser controls. Maximum won by checkmate on move 21. This demonstrated working interaction, including castling, but weak chess decisions.
 
-The dashboard was opened and visually checked in a browser. Full extension installation and an uninterrupted game remain separate verification steps.
+The dashboard was opened and visually checked in a browser. The extension has not been verified in an uninterrupted installed-extension game. Standalone runner tests separately cover autonomous turns, canvas move history, cancellation, stale decisions, and game-over handling.

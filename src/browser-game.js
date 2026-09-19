@@ -47,7 +47,7 @@ export function browserGame(page) {
       await page.mouse.click(point.x, point.y);
     }
     if (move.promotion) {
-      const choice = page.locator(`.promotion-window .${move.uci[4] === 'n' ? 'wn' : 'w' + move.uci[4]}, .promotion-piece.w${move.uci[4]}`);
+      const choice = page.locator(`.promotion-window .w${move.uci[4]}, .promotion-piece.w${move.uci[4]}`);
       await choice.first().waitFor({ state: 'visible', timeout: 2000 });
       check();
       checkUrl();
@@ -65,11 +65,12 @@ export async function startMaximum(page, signal) {
     if (!isBotUrl(page.url())) throw new Error('Site redirected away from the bot page. No login or human-game automation was attempted.');
     if (await page.getByRole('button', { name: 'Resign', exact: true }).isVisible()) return;
     const onboarding = page.getByRole('button', { name: 'Start', exact: true });
-    if (await onboarding.isVisible()) await onboarding.click();
+    if (await onboarding.isVisible()) { await onboarding.click(); continue; }
     const play = page.getByRole('button', { name: 'Play', exact: true });
     if (await play.isVisible()) {
       if (!page.url().includes('/Komodo25')) throw new Error('Maximum is not selected');
-      await play.click();
+      try { await play.click({ timeout: 750 }); }
+      catch (error) { if (error.name !== 'TimeoutError') throw error; }
     }
     await new Promise(resolve => setTimeout(resolve, 200));
   }
