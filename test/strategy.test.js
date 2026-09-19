@@ -57,3 +57,15 @@ test('compact strategy preserves all legal options and honors a warned final cho
     assert.match(request.questions.move.criteria.b5c6, /LOSE/);
   }
 });
+
+test('compact review carries defensive advice but preserves the final model choice', async () => {
+  const requests = [];
+  const result = await chooseMove([], { apiKey: 'test', strategy: 'compact-review', fetchImpl: async (url, options) => {
+    requests.push(JSON.parse(options.body));
+    return { ok: true, json: async () => ({ answers: requests.length === 1 ? { move: { choice: 'e2e4', confidence: 0.5 }, defense: { choice: 'd2d4' } } : { move: { choice: 'f2f3', confidence: 0.4 } } }) };
+  } });
+  assert.equal(requests.length, 2);
+  assert.deepEqual(requests[1].state.advisoryChoices, { defense: 'd2d4' });
+  assert.equal(Object.keys(requests[1].questions.move.criteria).length, 20);
+  assert.equal(result.move.uci, 'f2f3');
+});

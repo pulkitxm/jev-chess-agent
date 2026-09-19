@@ -16,6 +16,7 @@ export function compactRequest(request, moves) {
       pieces: request.state.pieces,
       recentMoves: request.state.moveHistory.slice(-8),
       inCheck: request.state.inCheck,
+      advisoryChoices: request.state.perspectives,
       previousProposal: request.state.proposedMove,
       reviewWarning: request.state.warning,
       facts: 'Outcomes are calculated from legal immediate replies and limited forcing exchanges, not a full search. No detected loss does not mean a move is safe. Material units: pawn 1, knight or bishop 3, rook 5, queen 9. A refutation is a legal example line, not a prediction of the actual opponent.'

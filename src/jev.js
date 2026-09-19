@@ -61,7 +61,7 @@ export function makeRequest(history, model = 'jev-1.13.0', { extendChecks = fals
 export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchImpl = fetch, signal, strategy = 'original' } = {}) {
   if (!apiKey) throw new Error('Set TYPESAFE_API_KEY in the local .env file');
   const started = Date.now();
-  const { request, moves, fen } = makeRequest(history, model, { extendChecks: ['foresight', 'deliberate', 'development', 'compact'].includes(strategy) });
+  const { request, moves, fen } = makeRequest(history, model, { extendChecks: ['foresight', 'deliberate', 'development', 'compact', 'compact-review'].includes(strategy) });
   const rounds = [];
   const ask = async payload => {
     const response = await fetchImpl('https://api.typesafe.ai/v1/systemone', {
@@ -83,17 +83,20 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
     rounds.push({ choice: selected.uci, confidence: answer.confidence, usage: result.usage, perspectives });
     return { result, answer, selected };
   };
-  if (!['original', 'semantic', 'foresight', 'deliberate', 'development', 'compact'].includes(strategy)) throw new Error('Unknown decision strategy');
-  const initial = strategy === 'compact' ? compactRequest(request, moves) : strategy !== 'original' ? semanticRequest(request, moves, { development: strategy === 'development' }) : request;
+  if (!['original', 'semantic', 'foresight', 'deliberate', 'development', 'compact', 'compact-review'].includes(strategy)) throw new Error('Unknown decision strategy');
+  const initial = strategy.startsWith('compact') ? compactRequest(request, moves) : strategy !== 'original' ? semanticRequest(request, moves, { development: strategy === 'development' }) : request;
   if (strategy === 'deliberate') {
     initial.questions.defense = { ...initial.questions.move, instructions: 'Which legal move best defends our king, queen, and other pieces against the strongest opponent reply? Prefer preventing mate and serious material losses. Compare the supplied exchange warnings. Do not favor a check or capture merely because it is forcing.' };
     initial.questions.coordination = { ...initial.questions.move, instructions: 'Which legal move most improves the coordination and activity of our pieces without neglecting concrete threats? Prefer central control, developing undeveloped pieces, king safety, and useful pawn advances. Avoid purposeless repeated moves and premature attacks. Consider the complete board.' };
+  }
+  if (strategy === 'compact-review') {
+    initial.questions.defense = { ...initial.questions.move, instructions: 'Select the legal move with the best immediate tactical outcome from our perspective: first our checkmate, then avoiding opponent checkmate, then the largest material gain or smallest material loss. No detected loss is preferable to any detected loss. When tactical outcomes are equal prefer developing unused pieces or castling. A check is not compensation for material loss.' };
   }
   let picked = await ask(initial);
   const warned = picked.selected.tactics;
   const saferExists = moves.some(move => !move.tactics.opponentCanCheckmateImmediately && !move.tactics.opponentCanForceMateAfterCheck && move.tactics.worstMaterialChangeInListedExchanges >= 0);
   const tacticalWarning = queenLoss(picked.selected) || warned.opponentCanCheckmateImmediately || warned.opponentCanForceMateAfterCheck || (saferExists && warned.worstMaterialChangeInListedExchanges < 0);
-  if (strategy === 'deliberate' || tacticalWarning) {
+  if (strategy === 'deliberate' || strategy === 'compact-review' || tacticalWarning) {
     const review = boundRequest({
       model,
       state: {
@@ -109,7 +112,7 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
         criteria: {}
       } }
     }, moves);
-    picked = await ask(strategy === 'compact' ? compactRequest(review, moves) : strategy !== 'original' ? semanticRequest(review, moves, { development: strategy === 'development' }) : review);
+    picked = await ask(strategy.startsWith('compact') ? compactRequest(review, moves) : strategy !== 'original' ? semanticRequest(review, moves, { development: strategy === 'development' }) : review);
   }
   const usage = rounds.reduce((sum, round) => ({ input_tokens: sum.input_tokens + (round.usage?.input_tokens || 0), output_tokens: sum.output_tokens + (round.usage?.output_tokens || 0) }), { input_tokens: 0, output_tokens: 0 });
   return {
