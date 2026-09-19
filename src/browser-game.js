@@ -67,6 +67,7 @@ export async function startEngine(page, signal, opponent = 'maximum') {
   while (Date.now() < deadline) {
     signal?.throwIfAborted();
     if (!isBotUrl(page.url())) throw new Error('Site redirected away from the bot page. No login or human-game automation was attempted.');
+    if (await page.getByText('Performing security verification', { exact: true }).isVisible()) throw new Error('Chess.com requires human verification. The headless game has not started.');
     if (await page.getByRole('button', { name: 'Resign', exact: true }).isVisible()) return;
     const onboarding = page.getByRole('button', { name: 'Start', exact: true });
     if (await onboarding.isVisible()) {

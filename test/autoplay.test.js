@@ -74,6 +74,7 @@ test('startup creates a fresh game when the site remembers an unfinished one', a
   const clicked = [];
   const page = {
     goto: async () => {},
+    getByText: () => ({ isVisible: async () => false }),
     url: () => 'https://www.chess.com/play/computer/Komodo25',
     getByRole: (role, { name }) => ({
       isVisible: async () => name === state,
@@ -94,4 +95,32 @@ test('waits for the final move when game controls disappear before notation upda
   assert.equal(result.reason, 'Game finished');
   assert.equal(result.result, '0-1');
   assert.equal(saved.at(-1), 'Qh4#');
+});
+
+test('Beginner startup selects the level-one engine route', async () => {
+  let target;
+  let state = 'Play';
+  const page = {
+    goto: async url => { target = url; },
+    getByText: () => ({ isVisible: async () => false }),
+    url: () => target,
+    getByRole: (role, { name }) => ({
+      isVisible: async () => name === state,
+      click: async () => { state = 'Resign'; }
+    })
+  };
+  await startEngine(page, undefined, 'beginner');
+  assert.equal(target, 'https://www.chess.com/play/computer/Komodo1');
+  await assert.rejects(startEngine(page, undefined, 'unknown'), /Unknown engine/);
+});
+
+
+test('stops on human verification before attempting game controls', async () => {
+  const page = {
+    goto: async () => {},
+    url: () => 'https://www.chess.com/play/computer/Komodo1',
+    getByText: () => ({ isVisible: async () => true }),
+    getByRole: () => { throw new Error('Must not interact with verification'); }
+  };
+  await assert.rejects(startEngine(page, undefined, 'beginner'), /requires human verification/);
 });
