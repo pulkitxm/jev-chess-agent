@@ -6,7 +6,7 @@ import { chooseMove } from './jev.js';
 import { gameResult } from './chess.js';
 import { autoplay } from './autoplay.js';
 import { browserGame, startMaximum } from './browser-game.js';
-import { startRetinaRecording } from './recording.js';
+import { exportRecording } from './recording.js';
 
 const { values } = parseArgs({ options: {
   demo: { type: 'boolean', default: false },
@@ -33,8 +33,8 @@ const size = values['4k'] ? { width: 1920, height: 1080 } : { width: 1280, heigh
 const context = await chromium.launchPersistentContext(profile, {
   channel: 'chrome', headless: values.headless,
   viewport: size,
-  deviceScaleFactor: values['4k'] ? 2 : 1,
-  ...(!values['4k'] && { recordVideo: { dir: directory, size } })
+  deviceScaleFactor: 1,
+  recordVideo: { dir: directory, size }
 });
 const page = context.pages()[0] || await context.newPage();
 page.setDefaultTimeout(5000);
@@ -47,12 +47,10 @@ const save = async chess => {
 let outcome;
 let firstMoveSeconds;
 let gameReadySeconds;
-let finishRecording;
 const started = Date.now();
 try {
   console.log('Opening a dedicated Chrome profile. Jev selects moves; the program runs the game and records video.');
   await startMaximum(page, controller.signal);
-  if (values['4k']) finishRecording = await startRetinaRecording(page, directory);
   gameReadySeconds = (Date.now() - started) / 1000;
   const game = browserGame(page);
   console.log('Maximum game started. Press Ctrl+C to stop and save the recording.');
@@ -72,18 +70,13 @@ try {
   console.error(error.message);
   if (!controller.signal.aborted) process.exitCode = 1;
 } finally {
-  if (finishRecording) {
-    console.log('Exporting the live recording to 3840 x 2160 MP4.');
-    try {
-      const recording = await finishRecording();
-      await writeFile(resolve(directory, 'recording.json'), JSON.stringify(recording, null, 2));
-    } catch (error) {
-      console.error(error.message);
-      process.exitCode = 1;
-    }
-  }
   await writeFile(resolve(directory, 'summary.json'), JSON.stringify({ ...outcome, complete: outcome?.reason === 'Game finished' && outcome?.result !== '*', gameUrl: page.url(), gameReadySeconds, firstMoveSeconds, elapsedSeconds: (Date.now() - started) / 1000 }, null, 2), { mode: 0o600 });
   await context.close();
   if (videoPath) await rename(videoPath, resolve(directory, 'demo.webm'));
+  if (videoPath && values['4k']) {
+    console.log('Exporting continuous browser video to 3840 x 2160 MP4.');
+    await exportRecording(resolve(directory, 'demo.webm'), resolve(directory, 'match-4k.mp4'), gameReadySeconds || 0);
+    await writeFile(resolve(directory, 'recording.json'), JSON.stringify({ capture: 'continuous browser video', sourceWidth: size.width, sourceHeight: size.height, exportWidth: 3840, exportHeight: 2160, upscaled: true }, null, 2));
+  }
   console.log(`Recording and game: ${directory}`);
 }

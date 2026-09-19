@@ -27,15 +27,15 @@ For a full game:
 npm run play
 ```
 
-For a complete live match with a native 4K, 16:9 MP4 export:
+For a complete live match with a 4K, 16:9 MP4 export:
 
 ```sh
 npm run record:4k
 ```
 
-This single command starts a dedicated Chrome window, opens Maximum, lets Jev choose every move, uses a readable 1920 by 1080 page layout rendered at double pixel density for a sharp 3840 by 2160 recording, and exports `match-4k.mp4` alongside the PGN and decision logs. Capture starts once the board is ready, keeps the entire match and result screen, and exports H.264 at 30 frames per second. It does not upscale a smaller recording. Live browser frames are captured roughly every 100 milliseconds plus capture time, with their real timing preserved; the 30 fps export repeats frames between captures. No audio is recorded. The FFmpeg encoder is installed with the project dependencies.
+This single command starts a dedicated Chrome window, opens Maximum, lets Jev choose every move, continuously records a readable 1920 by 1080 browser layout and scales it to a 3840 by 2160 export, and exports `match-4k.mp4` alongside the PGN and decision logs. The export trims initial loading, keeps the entire match and result screen, and uses H.264 at 30 frames per second. The 4K export is upscaled from continuous 1080p browser video. It preserves capture timing and repeats frames where needed; it does not create additional motion detail. No audio is recorded. The FFmpeg encoder is installed with the project dependencies.
 
-If the site permits background operation, use `npm run record:4k -- --headless`. To choose the local output folder, use `npm run record:4k -- --output data/my-match`. Each match makes paid TypeSafe requests. A complete recording does not imply a win. Check `complete` in `summary.json`; an interrupted game saves its available footage. If capture or export fails, temporary frames are retained locally for recovery.
+If the site permits background operation, use `npm run record:4k -- --headless`. To choose the local output folder, use `npm run record:4k -- --output data/my-match`. Each match makes paid TypeSafe requests. A complete recording does not imply a win. Check `complete` in `summary.json`; an interrupted game saves its available footage. The source `demo.webm` is retained locally for recovery if export fails.
 
 The full runner plays through the game result without a default move or time cutoff. Use Ctrl+C to stop early and finalize the video. Optional `--max-moves` and `--seconds` explicitly limit a run; such a recording is incomplete unless the game ends first.
 
@@ -136,3 +136,9 @@ The standalone runner completed a live five-decision demo against Maximum in abo
 Tactical checks cover the original bishop and rook sacrifices, equal exchanges, immediate mate threats, and preservation of the complete legal choice list during reconsideration. A live diagnostic changed the old losing rook check to a move without a detected material loss after reconsideration. These limited diagnostics do not establish a playing-strength rating.
 
 The standalone runner also completed and recorded an uninterrupted full match with tactical summaries enabled. Maximum won by checkmate on move 42. The video includes the starting board, every move, and the result screen. A delayed final move-list update exposed a result logging race; the runner now waits for final notation, with a regression test. All 29 automated tests pass. This result does not demonstrate that Jev can beat Maximum.
+
+## Verified win attempts
+
+`npm run attempt:win -- --games 3` runs up to three complete matches, saves every result and recording, and stops early only for a verified win. It checks the PGN for checkmate and audits each white move against the recorded final Jev answer. Errors and incomplete games stop the run. Exit code 2 means the attempt limit was reached without a win. Use `--strategy original` for the original numeric descriptions; the default experimental `semantic` strategy uses plain-language warnings. Neither strategy filters legal moves or overrides Jev. More attempts do not guarantee a win.
+
+The selector now always reconsiders an uncompensated queen loss or immediate mate threat, including positions where every alternative also has a material warning. This fixes a missed review condition, not the model's chess ability. Jev may still insist on a bad move. TypeSafe's current [model documentation](https://docs.typesafe.ai/models) does not offer customer fine-tuning, and both current model aliases resolve to the same version.
