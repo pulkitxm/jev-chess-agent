@@ -10,7 +10,7 @@
     "choose": "node --env-file-if-exists=.env src/cli.js",
     "play": "node --env-file-if-exists=.env src/run.js",
     "demo": "node --env-file-if-exists=.env src/run.js --demo",
-    "record:4k": "node --env-file-if-exists=.env src/run.js --4k --headless"
+    "record:4k": "node --env-file-if-exists=.env src/run.js --4k"
   },
   "dependencies": {
     "chess.js": "1.4.0",

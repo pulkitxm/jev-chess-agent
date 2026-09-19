@@ -33,9 +33,6 @@ const context = await chromium.launchPersistentContext(profile, {
   viewport: size,
   recordVideo: { dir: directory, size }
 });
-if (values['4k']) await context.addInitScript(() => {
-  document.addEventListener('DOMContentLoaded', () => { document.documentElement.style.zoom = '2'; }, { once: true });
-});
 const page = context.pages()[0] || await context.newPage();
 page.setDefaultTimeout(5000);
 const video = page.video();
