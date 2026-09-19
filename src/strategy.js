@@ -9,6 +9,7 @@ export function semanticRequest(request, moves) {
       proposedMove: request.state.proposedMove,
       warning: request.state.warning,
       proposedConsequences: request.state.proposedConsequences,
+      perspectives: request.state.perspectives,
       objective: 'Win a standard chess game. The opponent always tries to refute our moves. The supplied exchange warnings are computed from legal moves, but do not cover every tactic. Extended checking lines examine all legal check evasions and the next opponent captures or immediate mates, followed by limited same-square exchanges. These are limited tactical calculations, not a full position evaluation.'
     },
     questions: { move: {

@@ -21,7 +21,7 @@ const maxMoves = values['max-moves'] === undefined ? (values.demo ? 8 : Infinity
 const maxSeconds = values.seconds === undefined ? (values.demo ? 120 : Infinity) : Number(values.seconds);
 if ((maxMoves !== Infinity && !Number.isInteger(maxMoves)) || maxMoves < 1 || (maxMoves !== Infinity && maxMoves > 1000) || Number.isNaN(maxSeconds) || maxSeconds < 1) throw new Error('Invalid move or time limit');
 if (!process.env.TYPESAFE_API_KEY) throw new Error('Set TYPESAFE_API_KEY in .env');
-if (!['original', 'semantic', 'foresight'].includes(values.strategy)) throw new Error('Unknown decision strategy');
+if (!['original', 'semantic', 'foresight', 'deliberate'].includes(values.strategy)) throw new Error('Unknown decision strategy');
 const directory = resolve(values.output || `data/runs/${new Date().toISOString().replace(/[:.]/g, '-')}`);
 await mkdir(directory, { recursive: true, mode: 0o700 });
 const controller = new AbortController();

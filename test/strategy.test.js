@@ -26,3 +26,18 @@ test('reviews an uncompensated queen sacrifice even when every alternative has a
   assert.match(requests[1].state.proposedConsequences.queenWarning, /queen can be captured/);
   assert.equal(result.move.uci, 'g3c3');
 });
+
+test('separate perspectives inform a final Jev choice without narrowing legal moves', async () => {
+  const requests = [];
+  const result = await chooseMove([], { apiKey: 'test', strategy: 'deliberate', fetchImpl: async (url, options) => {
+    requests.push(JSON.parse(options.body));
+    return { ok: true, json: async () => ({ answers: requests.length === 1 ? {
+      move: { choice: 'e2e4', confidence: 0.5 }, defense: { choice: 'd2d4' }, coordination: { choice: 'g1f3' }
+    } : { move: { choice: 'f2f3', confidence: 0.4 } } }) };
+  } });
+  assert.equal(requests.length, 2);
+  assert.equal(Object.keys(requests[0].questions).length, 3);
+  assert.deepEqual(requests[1].state.perspectives, { defense: 'd2d4', coordination: 'g1f3' });
+  assert.equal(Object.keys(requests[1].questions.move.criteria).length, 20);
+  assert.equal(result.move.uci, 'f2f3');
+});

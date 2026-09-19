@@ -7,7 +7,7 @@ import { Chess } from 'chess.js';
 const { values } = parseArgs({ options: { games: { type: 'string', default: '3' }, strategy: { type: 'string', default: 'semantic' } } });
 const games = Number(values.games);
 if (!Number.isInteger(games) || games < 1 || games > 100) throw new Error('Choose between 1 and 100 games');
-if (!['original', 'semantic', 'foresight'].includes(values.strategy)) throw new Error('Unknown strategy');
+if (!['original', 'semantic', 'foresight', 'deliberate'].includes(values.strategy)) throw new Error('Unknown strategy');
 const directory = resolve(`data/attempts/${new Date().toISOString().replace(/[:.]/g, '-')}`);
 await mkdir(directory, { recursive: true });
 const results = [];

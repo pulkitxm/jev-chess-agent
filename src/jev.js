@@ -59,7 +59,7 @@ export function makeRequest(history, model = 'jev-1.13.0', { extendChecks = fals
 
 export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchImpl = fetch, signal, strategy = 'original' } = {}) {
   if (!apiKey) throw new Error('Set TYPESAFE_API_KEY in the local .env file');
-  const { request, moves, fen } = makeRequest(history, model, { extendChecks: strategy === 'foresight' });
+  const { request, moves, fen } = makeRequest(history, model, { extendChecks: ['foresight', 'deliberate'].includes(strategy) });
   const started = Date.now();
   const rounds = [];
   const ask = async payload => {
@@ -75,20 +75,31 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
     const selected = moves.find(move => move.uci === answer?.choice);
     if (!selected) throw new Error('TypeSafe returned a move outside the legal candidate list');
     if (!Number.isFinite(answer.confidence) || answer.confidence < 0 || answer.confidence > 1) throw new Error('Invalid confidence');
-    rounds.push({ choice: selected.uci, confidence: answer.confidence, usage: result.usage });
+    const perspectives = Object.fromEntries(Object.entries(result.answers || {}).filter(([name]) => name !== 'move').map(([name, value]) => {
+      if (!moves.some(move => move.uci === value.choice)) throw new Error('An advisory answer is not a legal move');
+      return [name, value.choice];
+    }));
+    rounds.push({ choice: selected.uci, confidence: answer.confidence, usage: result.usage, perspectives });
     return { result, answer, selected };
   };
-  if (!['original', 'semantic', 'foresight'].includes(strategy)) throw new Error('Unknown decision strategy');
-  let picked = await ask(strategy !== 'original' ? semanticRequest(request, moves) : request);
+  if (!['original', 'semantic', 'foresight', 'deliberate'].includes(strategy)) throw new Error('Unknown decision strategy');
+  const initial = strategy !== 'original' ? semanticRequest(request, moves) : request;
+  if (strategy === 'deliberate') {
+    initial.questions.defense = { ...initial.questions.move, instructions: 'Which legal move best defends our king, queen, and other pieces against the strongest opponent reply? Prefer preventing mate and serious material losses. Compare the supplied exchange warnings. Do not favor a check or capture merely because it is forcing.' };
+    initial.questions.coordination = { ...initial.questions.move, instructions: 'Which legal move most improves the coordination and activity of our pieces without neglecting concrete threats? Prefer central control, developing undeveloped pieces, king safety, and useful pawn advances. Avoid purposeless repeated moves and premature attacks. Consider the complete board.' };
+  }
+  let picked = await ask(initial);
   const warned = picked.selected.tactics;
   const saferExists = moves.some(move => !move.tactics.opponentCanCheckmateImmediately && !move.tactics.opponentCanForceMateAfterCheck && move.tactics.worstMaterialChangeInListedExchanges >= 0);
-  if (queenLoss(picked.selected) || warned.opponentCanCheckmateImmediately || warned.opponentCanForceMateAfterCheck || (saferExists && warned.worstMaterialChangeInListedExchanges < 0)) {
+  const tacticalWarning = queenLoss(picked.selected) || warned.opponentCanCheckmateImmediately || warned.opponentCanForceMateAfterCheck || (saferExists && warned.worstMaterialChangeInListedExchanges < 0);
+  if (strategy === 'deliberate' || tacticalWarning) {
     const review = boundRequest({
       model,
       state: {
         ...request.state,
         proposedMove: picked.selected.notation,
-        warning: `Your proposed move permits a concrete material loss or immediate checkmate. ${saferExists ? 'Alternatives without that detected loss exist.' : 'No alternative is certified free of material loss by these limited checks. Compare the actual losses, queen safety, and mate threats before deciding.'} Giving check alone does not compensate for losing a piece. Reconsider using the exchange lines; you remain the sole final move selector.`,
+        warning: tacticalWarning ? `Your proposed move permits a concrete material loss or forced checkmate. ${saferExists ? 'Alternatives without that detected loss exist.' : 'No alternative is certified free of material loss by these limited checks. Compare the actual losses, queen safety, and mate threats before deciding.'} Giving check alone does not compensate for losing a piece. Reconsider using the exchange lines; you remain the sole final move selector.` : 'Compare your initial choice with your separate defensive and piece-coordination assessments, then choose the strongest final move. All legal options remain available. These assessments are your own opinions, not an external engine or proof.',
+        perspectives: rounds[0].perspectives,
         proposedConsequences: moveFacts(picked.selected, 3)
       },
       questions: { move: {
