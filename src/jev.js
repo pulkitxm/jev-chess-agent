@@ -2,6 +2,8 @@ import { candidates, describeBoard, fromHistory } from './chess.js';
 import { tacticalConsequences } from './tactics.js';
 import { semanticRequest } from './strategy.js';
 import { compactRequest } from './compact.js';
+import { analyzePosition } from './engine.js';
+import { engineRequest } from './engine-review.js';
 
 function moveFacts(move, limit = 6) {
   const replies = [...move.tactics.forcingReplies].sort((a, b) => Number(b.opponentCheckmates) - Number(a.opponentCheckmates) || a.netMaterialChangeAfterExchange - b.netMaterialChangeAfterExchange);
@@ -59,7 +61,7 @@ export function makeRequest(history, model = 'jev-1.13.0', { extendChecks = fals
   return { request: boundRequest(request, moves), moves, fen: chess.fen() };
 }
 
-export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchImpl = fetch, signal, strategy = 'original' } = {}) {
+export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchImpl = fetch, signal, strategy = 'original', analyzeImpl = analyzePosition } = {}) {
   if (!apiKey) throw new Error('Set TYPESAFE_API_KEY in the local .env file');
   const started = Date.now();
   const { request, moves, fen } = makeRequest(history, model, { extendChecks: ['foresight', 'deliberate', 'development', 'compact', 'compact-review'].includes(strategy), extendThreats: strategy === 'compact-review' });
@@ -84,8 +86,9 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
     rounds.push({ choice: selected.uci, confidence: answer.confidence, usage: result.usage, perspectives });
     return { result, answer, selected };
   };
-  if (!['original', 'semantic', 'foresight', 'deliberate', 'development', 'compact', 'compact-review'].includes(strategy)) throw new Error('Unknown decision strategy');
-  const initial = strategy.startsWith('compact') ? compactRequest(request, moves) : strategy !== 'original' ? semanticRequest(request, moves, { development: strategy === 'development' }) : request;
+  if (!['original', 'semantic', 'foresight', 'deliberate', 'development', 'compact', 'compact-review', 'engine-review'].includes(strategy)) throw new Error('Unknown decision strategy');
+  const engineAdvice = strategy === 'engine-review' ? await analyzeImpl(history, { signal }) : undefined;
+  const initial = engineAdvice ? engineRequest(request, moves, engineAdvice) : strategy.startsWith('compact') ? compactRequest(request, moves) : strategy !== 'original' ? semanticRequest(request, moves, { development: strategy === 'development' }) : request;
   if (strategy === 'deliberate') {
     initial.questions.defense = { ...initial.questions.move, instructions: 'Which legal move best defends our king, queen, and other pieces against the strongest opponent reply? Prefer preventing mate and serious material losses. Compare the supplied exchange warnings. Do not favor a check or capture merely because it is forcing.' };
     initial.questions.coordination = { ...initial.questions.move, instructions: 'Which legal move most improves the coordination and activity of our pieces without neglecting concrete threats? Prefer central control, developing undeveloped pieces, king safety, and useful pawn advances. Avoid purposeless repeated moves and premature attacks. Consider the complete board.' };
@@ -97,7 +100,9 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
   const warned = picked.selected.tactics;
   const saferExists = moves.some(move => !move.tactics.opponentCanCheckmateImmediately && !move.tactics.opponentCanForceMateAfterReply && move.tactics.worstMaterialChangeInListedExchanges >= 0);
   const tacticalWarning = queenLoss(picked.selected) || warned.opponentCanCheckmateImmediately || warned.opponentCanForceMateAfterReply || (saferExists && warned.worstMaterialChangeInListedExchanges < 0);
-  if (strategy === 'deliberate' || strategy === 'compact-review' || tacticalWarning) {
+  if (engineAdvice) {
+    if (picked.selected.uci !== engineAdvice.lines.find(line => line.rank === 1).move) picked = await ask(engineRequest(request, moves, engineAdvice, picked.selected.uci));
+  } else if (strategy === 'deliberate' || strategy === 'compact-review' || tacticalWarning) {
     const review = boundRequest({
       model,
       state: {
@@ -125,6 +130,7 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
     usage,
     decisionRounds: rounds,
     strategy,
+    engineAdvice,
     elapsedMs: Date.now() - started
   };
 }

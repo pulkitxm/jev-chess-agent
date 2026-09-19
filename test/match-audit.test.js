@@ -20,7 +20,7 @@ function fixture() {
 }
 
 test('verifies a checkmate win with matching positions and final decisions', () => {
-  assert.deepEqual(auditMatch(fixture()), { result: '1-0', won: true, verifiedMoves: true, plies: 7, decisions: 4, strategies: ['compact-review'] });
+  assert.deepEqual(auditMatch(fixture()), { result: '1-0', won: true, verifiedMoves: true, engineAssisted: false, plies: 7, decisions: 4, strategies: ['compact-review'] });
 });
 
 test('rejects substituted moves, stale decisions, extra decisions, and false results', () => {

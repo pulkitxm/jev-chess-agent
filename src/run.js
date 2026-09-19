@@ -22,9 +22,10 @@ const maxMoves = values['max-moves'] === undefined ? (values.demo ? 8 : Infinity
 const maxSeconds = values.seconds === undefined ? (values.demo ? 120 : Infinity) : Number(values.seconds);
 if ((maxMoves !== Infinity && !Number.isInteger(maxMoves)) || maxMoves < 1 || (maxMoves !== Infinity && maxMoves > 1000) || Number.isNaN(maxSeconds) || maxSeconds < 1) throw new Error('Invalid move or time limit');
 if (!process.env.TYPESAFE_API_KEY) throw new Error('Set TYPESAFE_API_KEY in .env');
-if (!['original', 'semantic', 'foresight', 'deliberate', 'development', 'compact', 'compact-review'].includes(values.strategy)) throw new Error('Unknown decision strategy');
+if (!['original', 'semantic', 'foresight', 'deliberate', 'development', 'compact', 'compact-review', 'engine-review'].includes(values.strategy)) throw new Error('Unknown decision strategy');
 const engine = engines[values.opponent];
 if (!engine) throw new Error('Choose maximum, beginner, or advanced');
+const assisted = values.strategy === 'engine-review';
 const directory = resolve(values.output || `data/runs/${new Date().toISOString().replace(/[:.]/g, '-')}`);
 await mkdir(directory, { recursive: true, mode: 0o700 });
 const controller = new AbortController();
@@ -44,7 +45,7 @@ page.setDefaultTimeout(5000);
 const video = page.video();
 const videoPath = video ? await video.path() : null;
 const save = async chess => {
-  chess.header('Event', `Jev versus ${engine.name}`, 'Site', 'Chess.com', 'White', 'Jev', 'Black', engine.name, 'Result', gameResult(chess));
+  chess.header('Event', `Jev versus ${engine.name}`, 'Site', 'Chess.com', 'White', assisted ? 'Jev with Stockfish advice' : 'Jev', 'Black', engine.name, 'Result', gameResult(chess));
   await writeFile(resolve(directory, 'game.pgn'), chess.pgn(), { mode: 0o600 });
 };
 let outcome;
@@ -54,7 +55,7 @@ const started = Date.now();
 try {
   const cookieCount = await loadSession(context);
   if (cookieCount) console.log(`Loaded ${cookieCount} chess.com session cookies from the private local file.`);
-  console.log('Opening a dedicated Chrome profile. Jev selects moves; the program runs the game and records video.');
+  console.log(`Opening a dedicated Chrome profile. Jev selects moves${assisted ? ' with Stockfish advice' : ''}; the program runs the game and records video.`);
   await startEngine(page, controller.signal, values.opponent);
   gameReadySeconds = (Date.now() - started) / 1000;
   const game = browserGame(page);
@@ -76,7 +77,7 @@ try {
   await page.screenshot({ path: resolve(directory, 'error-screen.png') }).catch(() => {});
   if (!controller.signal.aborted) process.exitCode = 1;
 } finally {
-  await writeFile(resolve(directory, 'summary.json'), JSON.stringify({ ...outcome, opponent: engine.name, opponentPath: engine.path, strategy: values.strategy, model: process.env.TYPESAFE_MODEL || 'jev-1.13.0', headless: false, complete: outcome?.reason === 'Game finished' && outcome?.result !== '*', gameUrl: page.url(), gameReadySeconds, firstMoveSeconds, elapsedSeconds: (Date.now() - started) / 1000 }, null, 2), { mode: 0o600 });
+  await writeFile(resolve(directory, 'summary.json'), JSON.stringify({ ...outcome, opponent: engine.name, opponentPath: engine.path, strategy: values.strategy, engineAssisted: assisted, model: process.env.TYPESAFE_MODEL || 'jev-1.13.0', headless: false, complete: outcome?.reason === 'Game finished' && outcome?.result !== '*', gameUrl: page.url(), gameReadySeconds, firstMoveSeconds, elapsedSeconds: (Date.now() - started) / 1000 }, null, 2), { mode: 0o600 });
   await context.close();
   if (videoPath) await rename(videoPath, resolve(directory, 'demo.webm'));
   if (videoPath && values['4k']) {

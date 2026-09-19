@@ -8,7 +8,7 @@ import { engines } from '../src/browser-game.js';
 const { values } = parseArgs({ options: { games: { type: 'string', default: '3' }, strategy: { type: 'string', default: 'semantic' }, opponent: { type: 'string', default: 'maximum' } } });
 const games = Number(values.games);
 if (!Number.isInteger(games) || games < 1 || games > 100) throw new Error('Choose between 1 and 100 games');
-if (!['original', 'semantic', 'foresight', 'deliberate', 'development', 'compact', 'compact-review'].includes(values.strategy)) throw new Error('Unknown strategy');
+if (!['original', 'semantic', 'foresight', 'deliberate', 'development', 'compact', 'compact-review', 'engine-review'].includes(values.strategy)) throw new Error('Unknown strategy');
 if (!engines[values.opponent]) throw new Error('Choose maximum, beginner, or advanced');
 const directory = resolve(`data/attempts/${new Date().toISOString().replace(/[:.]/g, '-')}`);
 await mkdir(directory, { recursive: true });
@@ -30,7 +30,7 @@ for (let attempt = 1; attempt <= games; attempt++) {
   results.push({ attempt, output, opponent: summary.opponent, ...audit });
   await writeFile(resolve(directory, 'results.json'), JSON.stringify(results, null, 2));
   if (audit.won) {
-    console.log(`Verified Jev win. Complete recording: ${resolve(output, 'match-4k.mp4')}`);
+    console.log(`Verified ${audit.engineAssisted ? 'engine-assisted ' : ''}Jev win. Complete recording: ${resolve(output, 'match-4k.mp4')}`);
     process.exit(0);
   }
 }
