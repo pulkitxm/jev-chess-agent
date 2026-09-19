@@ -13,3 +13,16 @@ test('plain-language strategy keeps every legal choice and the final model answe
   assert.equal(result.move.uci, 'b5c6');
   assert.equal(result.strategy, 'semantic');
 });
+
+test('reviews an uncompensated queen sacrifice even when every alternative has a material warning', async () => {
+  const history = ['e4', 'c5', 'Nf3', 'd6', 'Nc3', 'Nf6', 'Bb5+', 'Bd7', 'Bxd7+', 'Nbxd7', 'O-O', 'e5', 'Ng5', 'Be7', 'Nf3', 'b5', 'Nxb5', 'Nxe4', 'Nc3', 'Nxc3', 'bxc3', 'e4', 'Ne1', 'd5', 'd4', 'O-O', 'dxc5', 'Nxc5', 'Qd4', 'Ne6', 'Qe5', 'Bf6', 'Qg3', 'Rc8', 'Bb2', 'Qb6', 'Rb1', 'Bxc3'];
+  const requests = [];
+  const result = await chooseMove(history, { apiKey: 'test', fetchImpl: async (url, options) => {
+    requests.push(JSON.parse(options.body));
+    return { ok: true, json: async () => ({ answers: { move: { choice: 'g3c3', confidence: 0.5 } } }) };
+  } });
+  assert.equal(requests.length, 2);
+  assert.match(requests[1].state.warning, /No alternative is certified/);
+  assert.match(requests[1].state.proposedConsequences.queenWarning, /queen can be captured/);
+  assert.equal(result.move.uci, 'g3c3');
+});

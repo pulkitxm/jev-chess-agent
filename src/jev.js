@@ -10,10 +10,15 @@ function moveFacts(move, limit = 6) {
     draw: move.draw,
     allowsMate: move.tactics.opponentCanCheckmateImmediately,
     materialChange: move.tactics.worstMaterialChangeInListedExchanges,
+    queenWarning: queenLoss(move) ? 'Our queen can be captured and the examined exchange does not recover its full material value.' : null,
     replyCount: move.tactics.opponentLegalReplies.length,
     forcingReplyCount: replies.length,
     shownReplies: replies.slice(0, limit).map(reply => ({ san: reply.reply, materialChange: reply.netMaterialChangeAfterExchange, mate: reply.opponentCheckmates, line: reply.exchangeLine.join(' ') }))
   };
+}
+
+function queenLoss(move) {
+  return move.tactics.forcingReplies.some(reply => reply.capturedPiece === 'q' && reply.netMaterialChangeAfterExchange < 0);
 }
 
 function boundRequest(request, moves) {
@@ -77,13 +82,13 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
   let picked = await ask(strategy === 'semantic' ? semanticRequest(request, moves) : request);
   const warned = picked.selected.tactics;
   const saferExists = moves.some(move => !move.tactics.opponentCanCheckmateImmediately && move.tactics.worstMaterialChangeInListedExchanges >= 0);
-  if (saferExists && (warned.opponentCanCheckmateImmediately || warned.worstMaterialChangeInListedExchanges < 0)) {
+  if (queenLoss(picked.selected) || warned.opponentCanCheckmateImmediately || (saferExists && warned.worstMaterialChangeInListedExchanges < 0)) {
     picked = await ask(boundRequest({
       model,
       state: {
         ...request.state,
         proposedMove: picked.selected.notation,
-        warning: 'Your proposed move permits a concrete material loss or immediate checkmate. Alternatives without that detected loss exist. Giving check alone does not compensate for losing a piece. Reconsider using the exchange lines; you remain the sole final move selector.',
+        warning: `Your proposed move permits a concrete material loss or immediate checkmate. ${saferExists ? 'Alternatives without that detected loss exist.' : 'No alternative is certified free of material loss by these limited checks. Compare the actual losses, queen safety, and mate threats before deciding.'} Giving check alone does not compensate for losing a piece. Reconsider using the exchange lines; you remain the sole final move selector.`,
         proposedConsequences: moveFacts(picked.selected, 3)
       },
       questions: { move: {
