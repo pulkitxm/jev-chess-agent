@@ -14,6 +14,16 @@ test('compact advice distinguishes saving a queen from saving a pawn when every 
   assert.deepEqual(Object.keys(compact.questions.move.criteria), moves.map(move => move.uci));
 });
 
+test('opening advice never promotes castling over a better detected tactical outcome', () => {
+  const history = ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6'];
+  const { request, moves } = makeRequest(history, undefined, { extendChecks: true, extendThreats: true });
+  const compact = compactRequest(request, moves);
+  assert.ok(moves.find(move => move.uci === 'e1g1').tactics.worstMaterialChangeInListedExchanges < 0);
+  assert.ok(compact.state.openingAdvice.moves.some(move => move.startsWith('d2d3')));
+  assert.ok(!compact.state.openingAdvice.moves.some(move => move.startsWith('e1g1')));
+  assert.deepEqual(Object.keys(compact.questions.move.criteria), moves.map(move => move.uci));
+});
+
 test('plain-language strategy keeps every legal choice and the final model answer', async () => {
   const history = ['e4', 'e6', 'Nf3', 'd5', 'exd5', 'exd5', 'Bb5+', 'c6'];
   const { request, moves } = makeRequest(history);

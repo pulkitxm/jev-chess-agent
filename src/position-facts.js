@@ -20,12 +20,23 @@ export function positionFacts(chess, moves) {
   const enemyPassed = passedPawns(chess, enemy);
   const king = board.find(piece => piece.type === 'k' && piece.color === side);
   const castling = chess.getCastlingRights(side);
+  const home = side === 'w' ? '1' : '8';
+  const undeveloped = board.filter(piece => piece.color === side && ((piece.type === 'n' && ['b', 'g'].includes(piece.square[0])) || (piece.type === 'b' && ['c', 'f'].includes(piece.square[0]))) && piece.square[1] === home).map(piece => piece.square);
+  const opening = chess.history().length < 24 && undeveloped.length > 0;
+  const developmentPriority = Object.fromEntries(moves.map(move => {
+    const pawnHome = `${move.from[0]}${side === 'w' ? '2' : '7'}`;
+    const initialCenterPawn = move.piece === 'pawn' && ['d', 'e'].includes(move.from[0]) && move.from === pawnHome;
+    const blocksCenterPawn = ['d', 'e'].includes(move.to[0]) && move.to[1] === (side === 'w' ? '3' : '6') && chess.get(`${move.to[0]}${side === 'w' ? '2' : '7'}`)?.type === 'p';
+    const developsMinor = undeveloped.includes(move.from) && !blocksCenterPawn && !(move.piece === 'knight' && ['a', 'h'].includes(move.to[0]));
+    return [move.uci, !opening ? 0 : move.notation.startsWith('O-O') ? 2 : developsMinor || initialCenterPawn ? 1 : 0];
+  }));
   const pawnDescription = pawn => `${pawn.square}, ${ranksLeft(pawn)} ranks from promotion on ${promotionSquare(pawn)}`;
   const state = {
     material: balance > 0 ? `We are ahead by ${balance} material units.` : balance < 0 ? `We are behind by ${-balance} material units.` : 'Material is equal.',
     phase: endgame ? 'Queenless ending. Activate the king when safe, coordinate rooks, and stop enemy passed pawns.' : 'Opening or middlegame. Develop pieces and protect the king.',
     ourPassedPawns: friendlyPassed.map(pawnDescription),
     enemyPassedPawns: enemyPassed.map(pawnDescription),
+    undevelopedMinorPieces: undeveloped,
     pawnReminder: 'Passed means no enemy pawn ahead on the same or neighboring files. Pieces can still block or capture it. Distances do not prove a forced promotion.'
   };
   const notes = Object.fromEntries(moves.map(candidate => {
@@ -56,5 +67,5 @@ export function positionFacts(chess, moves) {
     } finally { chess.undo(); }
     return [candidate.uci, facts.join(' ')];
   }));
-  return { state, notes };
+  return { state, notes, developmentPriority };
 }

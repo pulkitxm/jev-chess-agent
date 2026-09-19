@@ -12,13 +12,16 @@ export function compactRequest(request, moves) {
   const bestMaterial = Math.max(...pool.map(move => move.tactics.worstMaterialChangeInListedExchanges));
   const preferred = mating.length ? mating : pool.filter(move => move.tactics.worstMaterialChangeInListedExchanges === bestMaterial);
   const preferredIds = new Set(preferred.map(move => move.uci));
+  const bestDevelopment = Math.max(...preferred.map(move => position.developmentPriority[move.uci]));
+  const developing = bestDevelopment > 0 ? preferred.filter(move => position.developmentPriority[move.uci] === bestDevelopment) : [];
+  const developingIds = new Set(developing.map(move => move.uci));
   const describe = move => {
     const tactics = move.tactics;
     const loss = tactics.worstMaterialChangeInListedExchanges;
     const outcome = move.checkmate ? 'CHECKMATE: win now' : tactics.opponentCanCheckmateImmediately || tactics.opponentCanForceMateAfterReply ? 'LOSE BY CHECKMATE' : move.draw ? 'DRAW now' : loss < 0 ? `LOSE ${-loss} material units` : loss > 0 ? `GAIN ${loss} material units` : 'No detected material loss';
     const threat = [...tactics.forcingReplies].sort((a, b) => Number(b.opponentCheckmates || b.forcesMateAfterReply) - Number(a.opponentCheckmates || a.forcesMateAfterReply) || a.netMaterialChangeAfterExchange - b.netMaterialChangeAfterExchange)[0];
     const comparison = preferredIds.has(move.uci) ? 'PREFERRED TACTICAL GROUP.' : mating.length ? 'MISSES AVAILABLE CHECKMATE.' : mateRisk(move) && surviving.length ? 'AVOID: allows forced mate when an alternative avoids it.' : `INFERIOR TACTICAL OUTCOME: ${bestMaterial - loss} material units worse than the preferred group.`;
-    return [`${move.notation}: ${move.piece} ${move.from} to ${move.to}. ${comparison} ${outcome}.`, development[move.uci], position.notes[move.uci], loss < 0 || outcome === 'LOSE BY CHECKMATE' ? `Refutation: ${threat?.exchangeLine.join(' ') || 'none'}.` : '', move.promotion ? `Promotes to ${move.promotion}.` : ''].filter(Boolean).join(' ');
+    return [`${move.notation}: ${move.piece} ${move.from} to ${move.to}. ${comparison} ${outcome}.`, developingIds.has(move.uci) ? 'PREFERRED DEVELOPMENT: addresses an opening priority without worsening the detected tactical outcome.' : '', development[move.uci], position.notes[move.uci], loss < 0 || outcome === 'LOSE BY CHECKMATE' ? `Refutation: ${threat?.exchangeLine.join(' ') || 'none'}.` : '', move.promotion ? `Promotes to ${move.promotion}.` : ''].filter(Boolean).join(' ');
   };
   return {
     model: request.model,
@@ -28,6 +31,7 @@ export function compactRequest(request, moves) {
       recentMoves: request.state.moveHistory.slice(-8),
       inCheck: request.state.inCheck,
       position: position.state,
+      openingAdvice: developing.length ? { moves: developing.map(move => `${move.uci} (${move.notation})`), reason: 'These moves address castling, unused minor pieces, or initial central pawn development while matching the best detected tactical outcome. Prefer them over moving an already developed piece again without a concrete reason. These are basic opening rules, not an opening book or proof of the best move.' } : undefined,
       advisoryChoices: request.state.perspectives,
       previousProposal: request.state.proposedMove,
       reviewWarning: request.state.warning,
