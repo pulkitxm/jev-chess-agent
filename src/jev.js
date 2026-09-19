@@ -8,7 +8,7 @@ function moveFacts(move, limit = 6) {
     san: move.notation,
     checkmate: move.checkmate,
     draw: move.draw,
-    allowsMate: move.tactics.opponentCanCheckmateImmediately,
+    allowsMate: move.tactics.opponentCanCheckmateImmediately || move.tactics.opponentCanForceMateAfterCheck,
     materialChange: move.tactics.worstMaterialChangeInListedExchanges,
     queenWarning: queenLoss(move) ? 'Our queen can be captured and the examined exchange does not recover its full material value.' : null,
     replyCount: move.tactics.opponentLegalReplies.length,
@@ -29,10 +29,10 @@ function boundRequest(request, moves) {
   throw new Error('Chess request exceeds the local size budget');
 }
 
-export function makeRequest(history, model = 'jev-1.13.0') {
+export function makeRequest(history, model = 'jev-1.13.0', { extendChecks = false } = {}) {
   const chess = fromHistory(history);
   if (chess.isGameOver()) throw new Error('The game is over');
-  const moves = candidates(chess).map(move => ({ ...move, tactics: tacticalConsequences(chess, move) }));
+  const moves = candidates(chess).map(move => ({ ...move, tactics: tacticalConsequences(chess, move, { extendChecks }) }));
   if (moves.length > 255) throw new Error('Too many legal moves for one Choice question');
   const request = {
       model,
@@ -59,7 +59,7 @@ export function makeRequest(history, model = 'jev-1.13.0') {
 
 export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchImpl = fetch, signal, strategy = 'original' } = {}) {
   if (!apiKey) throw new Error('Set TYPESAFE_API_KEY in the local .env file');
-  const { request, moves, fen } = makeRequest(history, model);
+  const { request, moves, fen } = makeRequest(history, model, { extendChecks: strategy === 'foresight' });
   const started = Date.now();
   const rounds = [];
   const ask = async payload => {
@@ -78,11 +78,11 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
     rounds.push({ choice: selected.uci, confidence: answer.confidence, usage: result.usage });
     return { result, answer, selected };
   };
-  if (!['original', 'semantic'].includes(strategy)) throw new Error('Unknown decision strategy');
-  let picked = await ask(strategy === 'semantic' ? semanticRequest(request, moves) : request);
+  if (!['original', 'semantic', 'foresight'].includes(strategy)) throw new Error('Unknown decision strategy');
+  let picked = await ask(strategy !== 'original' ? semanticRequest(request, moves) : request);
   const warned = picked.selected.tactics;
-  const saferExists = moves.some(move => !move.tactics.opponentCanCheckmateImmediately && move.tactics.worstMaterialChangeInListedExchanges >= 0);
-  if (queenLoss(picked.selected) || warned.opponentCanCheckmateImmediately || (saferExists && warned.worstMaterialChangeInListedExchanges < 0)) {
+  const saferExists = moves.some(move => !move.tactics.opponentCanCheckmateImmediately && !move.tactics.opponentCanForceMateAfterCheck && move.tactics.worstMaterialChangeInListedExchanges >= 0);
+  if (queenLoss(picked.selected) || warned.opponentCanCheckmateImmediately || warned.opponentCanForceMateAfterCheck || (saferExists && warned.worstMaterialChangeInListedExchanges < 0)) {
     const review = boundRequest({
       model,
       state: {
@@ -97,7 +97,7 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
         criteria: {}
       } }
     }, moves);
-    picked = await ask(strategy === 'semantic' ? semanticRequest(review, moves) : review);
+    picked = await ask(strategy !== 'original' ? semanticRequest(review, moves) : review);
   }
   const usage = rounds.reduce((sum, round) => ({ input_tokens: sum.input_tokens + (round.usage?.input_tokens || 0), output_tokens: sum.output_tokens + (round.usage?.output_tokens || 0) }), { input_tokens: 0, output_tokens: 0 });
   return {

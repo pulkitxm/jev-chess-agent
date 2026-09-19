@@ -60,3 +60,20 @@ test('the crowded position that exceeded the API limit stays within the request 
   assert.equal(Object.keys(request.questions.move.criteria).length, moves.length);
   assert.equal(moves.length, fromHistory(history).moves().length);
 });
+
+test('extended checking lines expose the rook lost after a knight fork', () => {
+  const history = ['e4', 'd6', 'Nf3', 'Nc6', 'Nc3', 'Bg4', 'd4', 'e5', 'dxe5', 'dxe5', 'Qxd8+', 'Rxd8', 'Nd5', 'Bxf3', 'gxf3', 'Nd4', 'Nxc7+', 'Kd7'];
+  const chess = fromHistory(history);
+  const before = chess.fen();
+  const candidate = candidates(chess).find(move => move.notation === 'Nd5');
+  const simple = tacticalConsequences(chess, candidate);
+  const extended = tacticalConsequences(chess, candidate, { extendChecks: true });
+  assert.equal(simple.forcingReplies.find(reply => reply.reply === 'Nxc2+').netMaterialChangeAfterExchange, -1);
+  const fork = extended.forcingReplies.find(reply => reply.reply === 'Nxc2+');
+  assert.equal(fork.netMaterialChangeAfterExchange, -6);
+  assert.equal(fork.extendedCheckLine, true);
+  const replay = fromHistory(history);
+  for (const san of fork.exchangeLine) replay.move(san);
+  assert.equal(chess.fen(), before);
+  assert.deepEqual(chess.history(), history);
+});
