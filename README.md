@@ -46,7 +46,7 @@ npm run play -- --headless --max-moves 50 --seconds 300
 
 Each run saves `game.pgn`, `decisions.jsonl`, and `summary.json`, plus `demo.webm` for standard runs or `match-4k.mp4` and `recording.json` for 4K runs under `data/runs/<timestamp>/`. The terminal prints the exact folder. Setup time is separate from the play time limit. The video captures the browser viewport, not the desktop or microphone.
 
-The runner uses its own profile at `data/runner-profile`. It does not access your usual Chrome profile or copy your login cookies. It can play as a guest when chess.com permits this. Site challenges or login requirements may prevent automatic startup. Only one runner can use the profile at a time.
+The runner uses its own profile at `data/runner-profile`. It can import chess.com cookies exported locally using the session commands below, or play as a guest when no session is configured and chess.com permits it. Site challenges or login requirements may prevent automatic startup. Only one runner can use the profile at a time.
 
 Jev chooses the moves through TypeSafe. A normal program handles watching, validation, clicks, polling, recording, and stopping. Only Jev is called between turns, once normally and once more if a detected tactical loss triggers reconsideration.
 
@@ -99,6 +99,7 @@ The last command asks Jev to select the next move after the supplied SAN move hi
 | `MAX_CALLS` | `200` | Maximum decision attempts per service run |
 | `PORT` | `4318` | Local service port; extension expects 4318 |
 | `DATA_DIR` | `data/` | Local records directory |
+| `CHESS_SESSION_FILE` | `data/auth/chess-session.json` when present | Private chess.com cookie file |
 
 The dashboard's estimate uses $0.042 per million input tokens. It is not a billing statement and does not include CLI calls or previous service runs. Verify current pricing with [TypeSafe](https://docs.typesafe.ai/).
 
@@ -150,3 +151,17 @@ The experimental `foresight` strategy extends opponent checking moves through ev
 `npm run play:beginner` runs one complete match against the Beginner engine in headless Chrome, using the experimental development strategy, and exports the recording to 4K. The opponent name is recorded separately from Maximum in the PGN and summary. You can also select it with `npm run play -- --opponent beginner --headless --4k`. A win against Beginner is not a win against Maximum. Site verification challenges can block headless startup; the runner saves an error screenshot and stops rather than claiming a played game.
 
 The experimental `development` strategy includes the extended checking lines plus factual descriptions of repeated piece moves, initial minor-piece development, central pawn moves, and blocked central pawns. Jev still makes the final choice from all legal moves.
+
+## Reuse a local Chrome login
+
+On macOS, with permission to read the selected Chrome profile:
+
+```sh
+npm run session:setup
+npm run session:export
+npm run play:beginner
+```
+
+The exporter selects Chrome's last-used profile. To specify one, use `npm run session:export -- --profile "Default"` or a numbered profile such as `"Profile 1"`. It reads only chess.com cookie rows, decrypts them using Chrome's existing macOS Keychain entry, and writes `data/auth/chess-session.json` with permissions 600 inside a directory with permissions 700. Temporary databases contain only chess.com rows and are deleted after export. Cookie values and the Keychain password are never printed. macOS may require access approval for the calling application or its Keychain request; the script does not bypass those controls.
+
+The cookie file and the Python environment under `data/session-tools` are ignored by Git. The runner automatically imports the default cookie file before navigating. To use a different private file, set `CHESS_SESSION_FILE` to its path in the ignored `.env`; do not paste cookie values into tracked configuration. The runner rejects cookies outside chess.com and files readable by other users. An imported session does not guarantee that a headless browser will pass site verification. LocalStorage and other sites' sessions are not exported.
