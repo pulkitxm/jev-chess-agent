@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { Chess } from 'chess.js';
 import { candidates, fromHistory } from '../src/chess.js';
 import { tacticalConsequences } from '../src/tactics.js';
 
@@ -94,4 +95,16 @@ test('quiet pawn threats reveal a forced piece loss before the capture arrives',
   for (const san of threat.exchangeLine) replay.move(san);
   assert.equal(chess.fen(), original);
   assert.deepEqual(chess.history(), history);
+});
+
+test('quiet fork analysis distinguishes a lost knight from a forcing rook escape', () => {
+  for (const [pieces, expected] of [['N1N5', -2], ['R1R5', 0]]) {
+    const chess = new Chess(`7k/8/1p6/8/${pieces}/8/8/7K w - - 0 1`);
+    const original = chess.fen();
+    const candidate = candidates(chess).find(move => move.notation === 'Kh2');
+    const facts = tacticalConsequences(chess, candidate, { extendChecks: true, extendThreats: true });
+    assert.equal(facts.worstMaterialChangeInListedExchanges, expected);
+    assert.equal(facts.forcingReplies.find(reply => reply.reply === 'b5').extendedQuietThreat, true);
+    assert.equal(chess.fen(), original);
+  }
 });

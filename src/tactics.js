@@ -20,9 +20,8 @@ function afterThreat(chess, sufficientGain) {
   for (const response of responses) {
     chess.move(response);
     try {
-      if (chess.isCheckmate() || chess.isDraw()) return { gain: sufficientGain, line: [response.san] };
       let worst = { gain: gain(response), line: [response.san] };
-      for (const reply of chess.moves({ verbose: true })) {
+      for (const reply of chess.isGameOver() ? [] : chess.moves({ verbose: true })) {
         if (reply.san.endsWith('#')) {
           worst = { gain: -1000, line: [response.san, reply.san] };
           break;
