@@ -33,7 +33,8 @@ function boundRequest(request, moves) {
 export function makeRequest(history, model = 'jev-1.13.0', { extendChecks = false, extendThreats = false } = {}) {
   const chess = fromHistory(history);
   if (chess.isGameOver()) throw new Error('The game is over');
-  const moves = candidates(chess).map(move => ({ ...move, tactics: tacticalConsequences(chess, move, { extendChecks, extendThreats }) }));
+  const exchangeCache = new Map();
+  const moves = candidates(chess).map(move => ({ ...move, tactics: tacticalConsequences(chess, move, { extendChecks, extendThreats, exchangeCache }) }));
   if (moves.length > 255) throw new Error('Too many legal moves for one Choice question');
   const request = {
       model,
