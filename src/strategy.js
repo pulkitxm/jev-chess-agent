@@ -6,6 +6,9 @@ export function semanticRequest(request, moves) {
       pieces: request.state.pieces,
       moveHistory: request.state.moveHistory,
       inCheck: request.state.inCheck,
+      proposedMove: request.state.proposedMove,
+      warning: request.state.warning,
+      proposedConsequences: request.state.proposedConsequences,
       objective: 'Win a standard chess game. The opponent always tries to refute our moves. The supplied exchange warnings are computed from legal moves, but do not cover every tactic.'
     },
     questions: { move: {
@@ -21,7 +24,7 @@ export function semanticRequest(request, moves) {
           move.checkmate ? 'Wins the game immediately by checkmate.' : '',
           move.draw ? 'Ends the game in a draw.' : '',
           tactics.opponentCanCheckmateImmediately ? 'DANGER: the opponent can checkmate us immediately after this move.' : '',
-          tactics.forcingReplies.some(reply => reply.capturedPiece === 'q' && reply.netMaterialChangeAfterExchange < 0) ? 'QUEEN LOSS: our queen can be captured without full material compensation in the examined exchange.' : '',
+          tactics.forcingReplies.some(reply => reply.capturedPiece === 'q' && reply.netMaterialChangeAfterExchange < 0) ? 'QUEEN LOSS: our queen can be captured without full material compensation in the examined exchange.' : 'PRESERVES QUEEN: no uncompensated queen capture found among immediate opponent replies.',
           loss < 0 ? `DANGER: the opponent can cause a net material loss of ${-loss} pawn units in the examined exchanges.` : loss > 0 ? `The examined exchanges retain a material gain of ${loss} pawn units.` : 'No material loss found in the examined immediate exchanges; deeper threats may still exist.',
           ...warnings.map(reply => `Opponent response ${reply.reply}: ${reply.opponentCheckmates ? 'checkmates us' : `we lose ${-reply.netMaterialChangeAfterExchange} pawn units`}. Line: ${reply.exchangeLine.join(' ')}.`)
         ].filter(Boolean).join(' ')];

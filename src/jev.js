@@ -83,7 +83,7 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
   const warned = picked.selected.tactics;
   const saferExists = moves.some(move => !move.tactics.opponentCanCheckmateImmediately && move.tactics.worstMaterialChangeInListedExchanges >= 0);
   if (queenLoss(picked.selected) || warned.opponentCanCheckmateImmediately || (saferExists && warned.worstMaterialChangeInListedExchanges < 0)) {
-    picked = await ask(boundRequest({
+    const review = boundRequest({
       model,
       state: {
         ...request.state,
@@ -96,7 +96,8 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
         instructions: 'Select the best FINAL move. Prioritize avoiding immediate checkmate and losing material. A zero or positive materialChange is preferable to a negative value unless there is a concrete forced win. Do not sacrifice a bishop for a pawn or a rook for a bishop simply to give check. Every legal move is available, including the original proposal.',
         criteria: {}
       } }
-    }, moves));
+    }, moves);
+    picked = await ask(strategy === 'semantic' ? semanticRequest(review, moves) : review);
   }
   const usage = rounds.reduce((sum, round) => ({ input_tokens: sum.input_tokens + (round.usage?.input_tokens || 0), output_tokens: sum.output_tokens + (round.usage?.output_tokens || 0) }), { input_tokens: 0, output_tokens: 0 });
   return {
