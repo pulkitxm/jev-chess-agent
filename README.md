@@ -27,7 +27,7 @@ For a full game:
 npm run play
 ```
 
-The full runner stops at game end, 150 Jev moves, or 15 minutes of play. Use Ctrl+C to stop early and finalize the video.
+The full runner plays through the game result without a default move or time cutoff. Use Ctrl+C to stop early and finalize the video. Optional `--max-moves` and `--seconds` explicitly limit a run; such a recording is incomplete unless the game ends first.
 
 ```sh
 npm run demo -- --max-moves 5 --seconds 90
@@ -38,7 +38,7 @@ Each run saves `demo.webm`, `game.pgn`, `decisions.jsonl`, and `summary.json` un
 
 The runner uses its own profile at `data/runner-profile`. It does not access your usual Chrome profile or copy your login cookies. It can play as a guest when chess.com permits this. Site challenges or login requirements may prevent automatic startup. Only one runner can use the profile at a time.
 
-Jev chooses the moves through TypeSafe. A normal program handles watching, validation, clicks, polling, recording, and stopping. The only model call between turns is the Jev request itself.
+Jev chooses the moves through TypeSafe. A normal program handles watching, validation, clicks, polling, recording, and stopping. Only Jev is called between turns, once normally and once more if a detected tactical loss triggers reconsideration.
 
 ## Optional dashboard and extension
 
@@ -63,9 +63,9 @@ The system has three jobs:
 
 The standalone runner reconstructs the position from the visible move list, including piece icons. This works with both canvas and DOM board themes. It does not send screenshots or use a vision model. The extension reads rendered piece elements instead.
 
-The rules library produces all legal moves. Each option includes its normal chess notation, the pieces remaining after the move, any capture, and whether it gives check, checkmate, or a draw. These are rule-based facts. No Stockfish, engine score, opening book, move ranking, or best-move override is used.
+The rules library produces all legal moves. Each option includes its chess notation, captures, resulting position, check, checkmate, and draw status. It also lists the opponent's legal replies, identifies immediate checkmates, and spells out material exchanges after forcing replies. Material uses conventional pawn units: pawn 1, knight 3, bishop 3, rook 5, queen 9. Legal recaptures on the same square are examined up to six captures further, allowing either side to decline an exchange. These narrow tactical calculations are not a complete positional search. No Stockfish, opening book, candidate filtering, or best-move override is used.
 
-The local service gives Jev the current position, the previous moves, and this menu of legal choices. Jev selects one choice through TypeSafe's Choice question. The service rejects any answer outside the menu. The extension checks that the board is still in the same position before clicking, and confirms the resulting position afterward.
+The move selector gives Jev the current position, previous moves, and this menu of legal choices through TypeSafe's Choice question. If Jev chooses a detected material loss or immediate mate while an alternative without those detected problems exists, it gets one explicit warning and a second choice with every legal move still available. Jev's final answer is honored even if it ignores the warning. Decision logs contain both rounds and aggregate token usage. The service rejects any answer outside the menu. The extension checks that the board is still in the same position before clicking, and confirms the resulting position afterward.
 
 Jev's confidence is its reported confidence in that choice. It is not a measured probability of winning and is not an engine evaluation.
 
@@ -109,7 +109,7 @@ Dashboard game cards and counters are held in memory and reset when the service 
 - No verified win against Maximum. Jev may make strategically weak moves despite choosing only legal ones.
 - Start from a fresh standard position. Resuming is supported only when the same browser session has saved the game's history and the observed board is at most one legal move ahead.
 - Page changes, animations that never settle, navigation, covered squares, and unconfirmed clicks stop play instead of guessing.
-- The extension has a 150-move limit per run, and the service has its separate request limit.
+- The extension has a 150-move limit per run, and the service has its separate decision limit. The standalone full-game runner has no default cutoff.
 - Special moves are supported by the rules library. Live site behavior for castling, en passant, and the promotion picker still needs dedicated browser verification.
 - Chess.com may change its markup or require manual site interaction. This is a local prototype, not an unattended hosted service.
 
@@ -122,3 +122,5 @@ A complete initial game was played against Maximum using the Jev service and int
 The dashboard was opened and visually checked in a browser. The extension has not been verified in an uninterrupted installed-extension game. Standalone runner tests separately cover autonomous turns, canvas move history, cancellation, stale decisions, and game-over handling.
 
 The standalone runner completed a live five-decision demo against Maximum in about 30 seconds, including browser setup, and finalized a browser video without interactive orchestration between turns. This verifies automatic play and recording, not a win against Maximum.
+
+Tactical checks cover the original bishop and rook sacrifices, equal exchanges, immediate mate threats, and preservation of the complete legal choice list during reconsideration. A live diagnostic changed the old losing rook check to a move without a detected material loss after reconsideration. These limited diagnostics do not establish a playing-strength rating.
