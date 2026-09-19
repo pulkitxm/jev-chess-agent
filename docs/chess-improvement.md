@@ -86,6 +86,10 @@ Position descriptions now identify material balance, passed pawns, blockades, ki
 
 Run it with `npm run play:advanced:assisted`. The original compact-review command remains available for engine-free comparisons.
 
+The assisted strategy uses Stockfish's established alpha-beta search and NNUE evaluation through its standard process interface. The model receives the resulting analysis and selects the final move. Finite searches do not guarantee perfect play. See the [Stockfish algorithm and evaluation documentation](https://official-stockfish.github.io/docs/stockfish-wiki/Stockfish-FAQ.html). TypeSafe's [current model documentation](https://docs.typesafe.ai/models) confirms that customer fine-tuning and LoRA are unavailable; these implementation changes improve the information and decision process around Jev, not its hosted weights.
+
+The match audit also checks every legal move's engine record, the shared search iteration, and each displayed continuation's legal moves and notation. Its `engineAudit` output reports engine versions, search-depth bounds, reviewed decisions, and how many final choices followed the first recommendation. It rejects missing or duplicated candidates and inconsistent continuations. This checks the recorded evidence, not the objective optimality of an engine evaluation.
+
 ## Verified assisted win
 
 On September 20, 2026, the first complete engine-review match beat Advanced (1600), engine level 12 (`Komodo12`), by checkmate with `32.Qg7#`. The result was `1-0`, using Jev `jev-1.13.0` with Stockfish 19 advice. All 32 played white moves matched Jev's final API choice, and all 32 choices matched Stockfish's first recommendation. This demonstrates a working assisted system, not independent chess strength from Jev.
@@ -113,7 +117,7 @@ A subsequent full compact-review match against Advanced lost by checkmate after 
 1. Build a fixed, independent tactical test set covering forks, pins, hanging queens, mate defense, promotion, and endgames. Lichess publishes CC0 puzzle data with solution moves and themes. Use solutions only for offline grading, never to choose live moves. Its puzzle FEN is before the opponent's first move, so apply that first move before testing the solver.
 2. Compare compact prompts with separate Jev judgments for tactical danger and positional improvement. Always let a final Jev choice see all legal moves. More questions must earn their extra latency through measured improvement.
 3. Measure full-game results against a fixed opponent and record every attempt. Report wins, draws, and losses, rather than only the best recording.
-4. If deeper search is added, describe it accurately as search-assisted Jev. A search engine that supplies the best move would materially change the original experiment.
+4. Evaluate deeper engine search separately from rules-only improvements. The engine-review strategy is search-assisted Jev and materially changes the original experiment.
 
 Dataset: https://database.lichess.org/#puzzles
 
