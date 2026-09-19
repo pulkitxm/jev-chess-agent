@@ -1,12 +1,13 @@
 import http from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile, writeFile, mkdir, appendFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { resolve, sep } from 'node:path';
 import { chooseMove } from './jev.js';
 import { fromHistory, gameResult } from './chess.js';
 
 const root = new URL('../', import.meta.url);
-const data = new URL('data/', root);
+const data = process.env.DATA_DIR ? pathToFileURL(resolve(process.env.DATA_DIR) + sep) : new URL('data/', root);
 await mkdir(data, { recursive: true, mode: 0o700 });
 const tokenFile = new URL('bridge-token', data);
 let token;
