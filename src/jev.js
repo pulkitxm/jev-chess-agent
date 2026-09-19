@@ -1,9 +1,10 @@
 import { candidates, describeBoard, fromHistory } from './chess.js';
+import { tacticalConsequences } from './tactics.js';
 
 export function makeRequest(history, model = 'jev-1.13.0') {
   const chess = fromHistory(history);
   if (chess.isGameOver()) throw new Error('The game is over');
-  const moves = candidates(chess);
+  const moves = candidates(chess).map(move => ({ ...move, tactics: tacticalConsequences(chess, move) }));
   if (moves.length > 255) throw new Error('Too many legal moves for one Choice question');
   return {
     request: {
@@ -15,13 +16,14 @@ export function makeRequest(history, model = 'jev-1.13.0') {
         fen: chess.fen(),
         pieces: describeBoard(chess),
         moveHistory: chess.history(),
+        tacticalFacts: 'Material units: pawn=1, knight=3, bishop=3, rook=5, queen=9. Negative material change means we lose material. Exchange lines consider legal recaptures on the same square, up to six more captures, allowing either side to stop exchanging. These are limited tactical facts, not a complete search or proof that a move is safe.',
         objective: 'Win the chess game against a strong opponent. All listed candidates are legal. The board and candidate descriptions are computed by a chess rules library.'
       },
       questions: {
         move: {
           type: 'choice',
-          instructions: 'Which legal move gives the side to move the strongest chess position? Choose a checkmating move when available. Otherwise consider opponent threats, king safety, undefended pieces, forcing checks and captures, development and central control. Avoid losing material or allowing mate. Select the best move from the supplied candidates. You are the sole move selector.',
-          criteria: Object.fromEntries(moves.map(({ uci, ...facts }) => [uci, facts]))
+          instructions: 'Choose the strongest legal chess move. First take a checkmate if available. Otherwise avoid moves with opponentCanCheckmateImmediately=true. Inspect forcingReplies and exchangeLine before choosing: a check is BAD if the opponent captures the checking piece and the exchange loses material. Prefer preserving material over giving a check or capturing a cheaper pawn. Negative worstMaterialChangeInListedExchanges is a concrete tactical warning, even if the move gives check. Favor moves without these losses when alternatives exist; a sacrifice needs concrete compensation, not just a check. Compare the resulting position, king safety, development, central control, and opponent threats. All legal moves remain available and you alone select the move.',
+          criteria: Object.fromEntries(moves.map(({ uci, resultingBoard, ...facts }) => [uci, facts]))
         }
       }
     },

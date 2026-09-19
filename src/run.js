@@ -14,9 +14,9 @@ const { values } = parseArgs({ options: {
   seconds: { type: 'string' },
   output: { type: 'string' }
 } });
-const maxMoves = Number(values['max-moves'] || (values.demo ? 8 : 150));
-const maxSeconds = Number(values.seconds || (values.demo ? 120 : 900));
-if (!Number.isInteger(maxMoves) || maxMoves < 1 || maxMoves > 200 || !Number.isFinite(maxSeconds) || maxSeconds < 1) throw new Error('Invalid move or time limit');
+const maxMoves = values['max-moves'] === undefined ? (values.demo ? 8 : Infinity) : Number(values['max-moves']);
+const maxSeconds = values.seconds === undefined ? (values.demo ? 120 : Infinity) : Number(values.seconds);
+if ((maxMoves !== Infinity && !Number.isInteger(maxMoves)) || maxMoves < 1 || (maxMoves !== Infinity && maxMoves > 1000) || Number.isNaN(maxSeconds) || maxSeconds < 1) throw new Error('Invalid move or time limit');
 if (!process.env.TYPESAFE_API_KEY) throw new Error('Set TYPESAFE_API_KEY in .env');
 const directory = resolve(values.output || `data/runs/${new Date().toISOString().replace(/[:.]/g, '-')}`);
 await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -39,27 +39,32 @@ const save = async chess => {
   await writeFile(resolve(directory, 'game.pgn'), chess.pgn(), { mode: 0o600 });
 };
 let outcome;
+let firstMoveSeconds;
+let gameReadySeconds;
 const started = Date.now();
 try {
   console.log('Opening a dedicated Chrome profile. Jev selects moves; the program runs the game and records video.');
   await startMaximum(page, controller.signal);
+  gameReadySeconds = (Date.now() - started) / 1000;
   const game = browserGame(page);
   console.log('Maximum game started. Press Ctrl+C to stop and save the recording.');
   outcome = await autoplay({ ...game, save, signal: controller.signal, maxMoves, maxSeconds,
     choose: async history => {
       const decision = await chooseMove(history, { apiKey: process.env.TYPESAFE_API_KEY, model: process.env.TYPESAFE_MODEL || 'jev-1.13.0', signal: controller.signal });
+      firstMoveSeconds ??= (Date.now() - started) / 1000;
       await appendFile(resolve(directory, 'decisions.jsonl'), JSON.stringify({ at: new Date().toISOString(), history, ...decision }) + '\n', { mode: 0o600 });
       return decision;
     }
   });
   console.log(`${outcome.reason}: ${outcome.result}. ${outcome.decisions} decisions.`);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(4000);
+  await page.screenshot({ path: resolve(directory, 'final-board.png') });
 } catch (error) {
   outcome = { error: error.message };
   console.error(error.message);
   if (!controller.signal.aborted) process.exitCode = 1;
 } finally {
-  await writeFile(resolve(directory, 'summary.json'), JSON.stringify({ ...outcome, elapsedSeconds: (Date.now() - started) / 1000 }, null, 2), { mode: 0o600 });
+  await writeFile(resolve(directory, 'summary.json'), JSON.stringify({ ...outcome, complete: outcome?.reason === 'Game finished' && outcome?.result !== '*', gameUrl: page.url(), gameReadySeconds, firstMoveSeconds, elapsedSeconds: (Date.now() - started) / 1000 }, null, 2), { mode: 0o600 });
   await context.close();
   if (videoPath) await rename(videoPath, resolve(directory, 'demo.webm'));
   console.log(`Recording and game: ${directory}`);
