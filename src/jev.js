@@ -9,7 +9,7 @@ function moveFacts(move, limit = 6) {
     san: move.notation,
     checkmate: move.checkmate,
     draw: move.draw,
-    allowsMate: move.tactics.opponentCanCheckmateImmediately || move.tactics.opponentCanForceMateAfterCheck,
+    allowsMate: move.tactics.opponentCanCheckmateImmediately || move.tactics.opponentCanForceMateAfterReply,
     materialChange: move.tactics.worstMaterialChangeInListedExchanges,
     queenWarning: queenLoss(move) ? 'Our queen can be captured and the examined exchange does not recover its full material value.' : null,
     replyCount: move.tactics.opponentLegalReplies.length,
@@ -30,10 +30,10 @@ function boundRequest(request, moves) {
   throw new Error('Chess request exceeds the local size budget');
 }
 
-export function makeRequest(history, model = 'jev-1.13.0', { extendChecks = false } = {}) {
+export function makeRequest(history, model = 'jev-1.13.0', { extendChecks = false, extendThreats = false } = {}) {
   const chess = fromHistory(history);
   if (chess.isGameOver()) throw new Error('The game is over');
-  const moves = candidates(chess).map(move => ({ ...move, tactics: tacticalConsequences(chess, move, { extendChecks }) }));
+  const moves = candidates(chess).map(move => ({ ...move, tactics: tacticalConsequences(chess, move, { extendChecks, extendThreats }) }));
   if (moves.length > 255) throw new Error('Too many legal moves for one Choice question');
   const request = {
       model,
@@ -61,7 +61,7 @@ export function makeRequest(history, model = 'jev-1.13.0', { extendChecks = fals
 export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchImpl = fetch, signal, strategy = 'original' } = {}) {
   if (!apiKey) throw new Error('Set TYPESAFE_API_KEY in the local .env file');
   const started = Date.now();
-  const { request, moves, fen } = makeRequest(history, model, { extendChecks: ['foresight', 'deliberate', 'development', 'compact', 'compact-review'].includes(strategy) });
+  const { request, moves, fen } = makeRequest(history, model, { extendChecks: ['foresight', 'deliberate', 'development', 'compact', 'compact-review'].includes(strategy), extendThreats: strategy === 'compact-review' });
   const rounds = [];
   const ask = async payload => {
     const response = await fetchImpl('https://api.typesafe.ai/v1/systemone', {
@@ -94,8 +94,8 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
   }
   let picked = await ask(initial);
   const warned = picked.selected.tactics;
-  const saferExists = moves.some(move => !move.tactics.opponentCanCheckmateImmediately && !move.tactics.opponentCanForceMateAfterCheck && move.tactics.worstMaterialChangeInListedExchanges >= 0);
-  const tacticalWarning = queenLoss(picked.selected) || warned.opponentCanCheckmateImmediately || warned.opponentCanForceMateAfterCheck || (saferExists && warned.worstMaterialChangeInListedExchanges < 0);
+  const saferExists = moves.some(move => !move.tactics.opponentCanCheckmateImmediately && !move.tactics.opponentCanForceMateAfterReply && move.tactics.worstMaterialChangeInListedExchanges >= 0);
+  const tacticalWarning = queenLoss(picked.selected) || warned.opponentCanCheckmateImmediately || warned.opponentCanForceMateAfterReply || (saferExists && warned.worstMaterialChangeInListedExchanges < 0);
   if (strategy === 'deliberate' || strategy === 'compact-review' || tacticalWarning) {
     const review = boundRequest({
       model,

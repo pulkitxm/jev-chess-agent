@@ -77,3 +77,21 @@ test('extended checking lines expose the rook lost after a knight fork', () => {
   assert.equal(chess.fen(), before);
   assert.deepEqual(chess.history(), history);
 });
+
+test('quiet pawn threats reveal a forced piece loss before the capture arrives', () => {
+  const history = ['e4', 'c5', 'e5', 'd5', 'd4', 'Nc6', 'dxc5', 'e6', 'Nc3', 'Bxc5', 'Nf3', 'Nge7', 'Bd2', 'Qb6', 'Bb5', 'Bxf2+', 'Ke2', 'O-O', 'Bxc6', 'bxc6', 'Qc1', 'Nf5', 'Rb1', 'Rb8', 'Na4', 'Ba6+', 'Kd1', 'Qb5', 'Nc3', 'Qb6', 'Na4', 'Qb5', 'Nc3', 'Qc4'];
+  const chess = fromHistory(history);
+  const original = chess.fen();
+  const candidate = candidates(chess).find(move => move.notation === 'Bf4');
+  const basic = tacticalConsequences(chess, candidate, { extendChecks: true });
+  const extended = tacticalConsequences(chess, candidate, { extendChecks: true, extendThreats: true });
+  assert.equal(basic.worstMaterialChangeInListedExchanges, 0);
+  assert.equal(extended.worstMaterialChangeInListedExchanges, -2);
+  const threat = extended.forcingReplies.find(reply => reply.reply === 'd4');
+  assert.equal(threat.extendedQuietThreat, true);
+  assert.equal(threat.netMaterialChangeAfterExchange, -2);
+  const replay = fromHistory(history);
+  for (const san of threat.exchangeLine) replay.move(san);
+  assert.equal(chess.fen(), original);
+  assert.deepEqual(chess.history(), history);
+});

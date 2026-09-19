@@ -31,7 +31,7 @@ for (const file of files.sort()) {
 const selected = [];
 for (const position of [...positions.values()].sort((a, b) => a.id.localeCompare(b.id))) {
   const { moves } = makeRequest(position.history, undefined, { extendChecks: true });
-  if (moves.some(move => move.tactics.worstMaterialChangeInListedExchanges >= 0 && !move.tactics.opponentCanCheckmateImmediately && !move.tactics.opponentCanForceMateAfterCheck)) selected.push(position);
+  if (moves.some(move => move.tactics.worstMaterialChangeInListedExchanges >= 0 && !move.tactics.opponentCanCheckmateImmediately && !move.tactics.opponentCanForceMateAfterReply)) selected.push(position);
   if (selected.length === limit) break;
 }
 if (!selected.length) throw new Error('No saved avoidable tactical-error positions found');
@@ -42,7 +42,7 @@ for (const position of selected) {
   for (const strategy of strategies) {
     const decision = await chooseMove(position.history, { apiKey: process.env.TYPESAFE_API_KEY, strategy });
     const t = decision.move.tactics;
-    const avoidedDetectedLoss = t.worstMaterialChangeInListedExchanges >= 0 && !t.opponentCanCheckmateImmediately && !t.opponentCanForceMateAfterCheck;
+    const avoidedDetectedLoss = t.worstMaterialChangeInListedExchanges >= 0 && !t.opponentCanCheckmateImmediately && !t.opponentCanForceMateAfterReply;
     results.push({ ...position, strategy, avoidedDetectedLoss, decision });
     await writeFile(join(directory, 'results.json'), JSON.stringify(results, null, 2), { mode: 0o600 });
     console.log(`${position.id.slice(0, 8)} ${strategy}: ${decision.move.notation}, detected loss avoided: ${avoidedDetectedLoss}, ${decision.elapsedMs}ms`);

@@ -14,11 +14,13 @@ function recapture(chess, square, depth) {
   return best;
 }
 
-function afterCheck(chess) {
+function afterThreat(chess, sufficientGain) {
   let best = { gain: -1000, line: [] };
-  for (const response of chess.moves({ verbose: true })) {
+  const responses = chess.moves({ verbose: true }).sort((a, b) => gain(b) - gain(a));
+  for (const response of responses) {
     chess.move(response);
     try {
+      if (chess.isCheckmate() || chess.isDraw()) return { gain: sufficientGain, line: [response.san] };
       let worst = { gain: gain(response), line: [response.san] };
       for (const reply of chess.moves({ verbose: true })) {
         if (reply.san.endsWith('#')) {
@@ -35,29 +37,39 @@ function afterCheck(chess) {
       }
       if (worst.gain > best.gain || !best.line.length) best = worst;
     } finally { chess.undo(); }
+    if (best.gain >= sufficientGain) break;
   }
   return best;
 }
 
-export function tacticalConsequences(chess, candidate, { extendChecks = false } = {}) {
+function quietThreat(chess, reply) {
+  if (reply.captured || reply.promotion || /[+#]$/.test(reply.san)) return false;
+  const targets = chess.board().flat().filter(piece => piece && piece.color === chess.turn() && values[piece.type] >= 3 && chess.attackers(piece.square, reply.color).includes(reply.to));
+  return (reply.piece === 'p' && targets.length > 0) || (reply.piece === 'n' && targets.length > 1) || targets.some(piece => values[piece.type] > values[reply.piece]);
+}
+
+export function tacticalConsequences(chess, candidate, { extendChecks = false, extendThreats = false } = {}) {
   const original = chess.fen();
   const move = chess.move({ from: candidate.from, to: candidate.to, promotion: candidate.uci[4] });
   try {
-    const replies = chess.moves({ verbose: true });
+    const replies = chess.isGameOver() ? [] : chess.moves({ verbose: true });
     const threats = [];
     for (const reply of replies) {
-      if (!reply.captured && !reply.promotion && !/[+#]$/.test(reply.san)) continue;
+      if (!extendThreats && !reply.captured && !reply.promotion && !/[+#]$/.test(reply.san)) continue;
       chess.move(reply);
       try {
+        const quiet = extendThreats && quietThreat(chess, reply);
+        if (!quiet && !reply.captured && !reply.promotion && !/[+#]$/.test(reply.san)) continue;
         const extended = extendChecks && chess.isCheck() && !chess.isCheckmate();
-        const recovery = extended ? afterCheck(chess) : reply.captured ? recapture(chess, reply.to, 6) : { gain: 0, line: [] };
+        const recovery = extended || quiet ? afterThreat(chess, gain(reply)) : reply.captured ? recapture(chess, reply.to, 6) : { gain: 0, line: [] };
         threats.push({
           reply: reply.san,
           capturedPiece: reply.captured || null,
           capturesMovedPiece: Boolean(reply.captured && reply.to === move.to),
           opponentCheckmates: chess.isCheckmate(),
-          forcesMateAfterCheck: extended && recovery.gain === -1000,
+          forcesMateAfterReply: (extended || quiet) && recovery.gain === -1000,
           extendedCheckLine: extended,
+          extendedQuietThreat: quiet,
           netMaterialChangeAfterExchange: gain(move) - gain(reply) + (recovery.gain === -1000 ? 0 : recovery.gain),
           exchangeLine: [move.san, reply.san, ...recovery.line]
         });
@@ -66,7 +78,7 @@ export function tacticalConsequences(chess, candidate, { extendChecks = false } 
     return {
       immediateMaterialGain: gain(move),
       opponentCanCheckmateImmediately: threats.some(reply => reply.opponentCheckmates),
-      opponentCanForceMateAfterCheck: threats.some(reply => reply.forcesMateAfterCheck),
+      opponentCanForceMateAfterReply: threats.some(reply => reply.forcesMateAfterReply),
       worstMaterialChangeInListedExchanges: Math.min(gain(move), ...threats.map(reply => reply.netMaterialChangeAfterExchange)),
       opponentLegalReplies: replies.map(reply => reply.san),
       forcingReplies: threats,

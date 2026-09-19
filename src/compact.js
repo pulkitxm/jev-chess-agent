@@ -2,7 +2,7 @@ import { developmentFacts } from './development.js';
 
 export function compactRequest(request, moves) {
   const development = developmentFacts(request.state.moveHistory, moves);
-  const mateRisk = move => move.tactics.opponentCanCheckmateImmediately || move.tactics.opponentCanForceMateAfterCheck;
+  const mateRisk = move => move.tactics.opponentCanCheckmateImmediately || move.tactics.opponentCanForceMateAfterReply;
   const mating = moves.filter(move => move.checkmate);
   const surviving = moves.filter(move => !mateRisk(move));
   const pool = mating.length ? mating : surviving.length ? surviving : moves;
@@ -12,8 +12,8 @@ export function compactRequest(request, moves) {
   const describe = move => {
     const tactics = move.tactics;
     const loss = tactics.worstMaterialChangeInListedExchanges;
-    const outcome = move.checkmate ? 'CHECKMATE: win now' : tactics.opponentCanCheckmateImmediately || tactics.opponentCanForceMateAfterCheck ? 'LOSE BY CHECKMATE' : move.draw ? 'DRAW now' : loss < 0 ? `LOSE ${-loss} material units` : loss > 0 ? `GAIN ${loss} material units` : 'No detected material loss';
-    const threat = [...tactics.forcingReplies].sort((a, b) => Number(b.opponentCheckmates || b.forcesMateAfterCheck) - Number(a.opponentCheckmates || a.forcesMateAfterCheck) || a.netMaterialChangeAfterExchange - b.netMaterialChangeAfterExchange)[0];
+    const outcome = move.checkmate ? 'CHECKMATE: win now' : tactics.opponentCanCheckmateImmediately || tactics.opponentCanForceMateAfterReply ? 'LOSE BY CHECKMATE' : move.draw ? 'DRAW now' : loss < 0 ? `LOSE ${-loss} material units` : loss > 0 ? `GAIN ${loss} material units` : 'No detected material loss';
+    const threat = [...tactics.forcingReplies].sort((a, b) => Number(b.opponentCheckmates || b.forcesMateAfterReply) - Number(a.opponentCheckmates || a.forcesMateAfterReply) || a.netMaterialChangeAfterExchange - b.netMaterialChangeAfterExchange)[0];
     const comparison = preferredIds.has(move.uci) ? 'PREFERRED TACTICAL GROUP.' : mating.length ? 'MISSES AVAILABLE CHECKMATE.' : mateRisk(move) && surviving.length ? 'AVOID: allows forced mate when an alternative avoids it.' : `INFERIOR TACTICAL OUTCOME: ${bestMaterial - loss} material units worse than the preferred group.`;
     return [`${move.notation}: ${move.piece} ${move.from} to ${move.to}. ${comparison} ${outcome}.`, development[move.uci], loss < 0 || outcome === 'LOSE BY CHECKMATE' ? `Refutation: ${threat?.exchangeLine.join(' ') || 'none'}.` : '', move.promotion ? `Promotes to ${move.promotion}.` : ''].filter(Boolean).join(' ');
   };
@@ -28,7 +28,7 @@ export function compactRequest(request, moves) {
       previousProposal: request.state.proposedMove,
       reviewWarning: request.state.warning,
       tacticalComparison: { preferredMoves: preferred.map(move => `${move.uci} (${move.notation})`), explanation: mating.length ? 'These moves checkmate immediately.' : bestMaterial < 0 ? `Every examined option concedes material. The preferred group limits the loss to ${-bestMaterial} units. Other options lose more or allow mate. Save the more valuable pieces even if a pawn must be lost.` : 'These moves have the best worst-case material outcome in the limited tactical calculation. Compare their positional merits. This is advice, not a forced selection.' },
-      facts: 'Outcomes are calculated from legal immediate replies and limited forcing exchanges, not a full search. No detected loss does not mean a move is safe. Material units: pawn 1, knight or bishop 3, rook 5, queen 9. A refutation is a legal example line, not a prediction of the actual opponent.'
+      facts: 'Outcomes are calculated from legal immediate replies and limited forcing exchanges, not a full search. Some strategies also extend quiet attacks by cheaper pieces and knight forks through our response and the next opponent capture or mate. No detected loss does not mean a move is safe. Material units: pawn 1, knight or bishop 3, rook 5, queen 9. A refutation is a legal example line, not a prediction of the actual opponent.'
     },
     questions: { move: {
       type: 'choice',
