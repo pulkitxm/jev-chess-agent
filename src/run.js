@@ -5,12 +5,14 @@ import { parseArgs } from 'node:util';
 import { chooseMove } from './jev.js';
 import { gameResult } from './chess.js';
 import { autoplay } from './autoplay.js';
-import { browserGame, startMaximum } from './browser-game.js';
+import { browserGame, startEngine, engines } from './browser-game.js';
 import { exportRecording } from './recording.js';
 
 const { values } = parseArgs({ options: {
   demo: { type: 'boolean', default: false },
-  headless: { type: 'boolean', default: false },
+  headless: { type: 'boolean', default: true },
+  headed: { type: 'boolean', default: false },
+  opponent: { type: 'string', default: 'maximum' },
   '4k': { type: 'boolean', default: false },
   strategy: { type: 'string', default: 'original' },
   'max-moves': { type: 'string' },
@@ -22,6 +24,8 @@ const maxSeconds = values.seconds === undefined ? (values.demo ? 120 : Infinity)
 if ((maxMoves !== Infinity && !Number.isInteger(maxMoves)) || maxMoves < 1 || (maxMoves !== Infinity && maxMoves > 1000) || Number.isNaN(maxSeconds) || maxSeconds < 1) throw new Error('Invalid move or time limit');
 if (!process.env.TYPESAFE_API_KEY) throw new Error('Set TYPESAFE_API_KEY in .env');
 if (!['original', 'semantic', 'foresight', 'deliberate', 'development'].includes(values.strategy)) throw new Error('Unknown decision strategy');
+const engine = engines[values.opponent];
+if (!engine) throw new Error('Choose maximum or beginner');
 const directory = resolve(values.output || `data/runs/${new Date().toISOString().replace(/[:.]/g, '-')}`);
 await mkdir(directory, { recursive: true, mode: 0o700 });
 const controller = new AbortController();
@@ -31,7 +35,7 @@ process.once('SIGTERM', stop);
 const profile = resolve('data/runner-profile');
 const size = values['4k'] ? { width: 1920, height: 1080 } : { width: 1280, height: 900 };
 const context = await chromium.launchPersistentContext(profile, {
-  channel: 'chrome', headless: values.headless,
+  channel: 'chrome', headless: !values.headed && values.headless,
   viewport: size,
   deviceScaleFactor: 1,
   recordVideo: { dir: directory, size }
@@ -41,7 +45,7 @@ page.setDefaultTimeout(5000);
 const video = page.video();
 const videoPath = video ? await video.path() : null;
 const save = async chess => {
-  chess.header('Event', 'Jev versus Maximum', 'Site', 'Chess.com', 'White', 'Jev', 'Black', 'Maximum', 'Result', gameResult(chess));
+  chess.header('Event', `Jev versus ${engine.name}`, 'Site', 'Chess.com', 'White', 'Jev', 'Black', engine.name, 'Result', gameResult(chess));
   await writeFile(resolve(directory, 'game.pgn'), chess.pgn(), { mode: 0o600 });
 };
 let outcome;
@@ -50,10 +54,10 @@ let gameReadySeconds;
 const started = Date.now();
 try {
   console.log('Opening a dedicated Chrome profile. Jev selects moves; the program runs the game and records video.');
-  await startMaximum(page, controller.signal);
+  await startEngine(page, controller.signal, values.opponent);
   gameReadySeconds = (Date.now() - started) / 1000;
   const game = browserGame(page);
-  console.log('Maximum game started. Press Ctrl+C to stop and save the recording.');
+  console.log(`${engine.name} game started. Press Ctrl+C to stop and save the recording.`);
   outcome = await autoplay({ ...game, save, signal: controller.signal, maxMoves, maxSeconds,
     choose: async history => {
       const decision = await chooseMove(history, { apiKey: process.env.TYPESAFE_API_KEY, model: process.env.TYPESAFE_MODEL || 'jev-1.13.0', signal: controller.signal, strategy: values.strategy });
@@ -68,9 +72,10 @@ try {
 } catch (error) {
   outcome = { error: error.message };
   console.error(error.message);
+  await page.screenshot({ path: resolve(directory, 'error-screen.png') }).catch(() => {});
   if (!controller.signal.aborted) process.exitCode = 1;
 } finally {
-  await writeFile(resolve(directory, 'summary.json'), JSON.stringify({ ...outcome, complete: outcome?.reason === 'Game finished' && outcome?.result !== '*', gameUrl: page.url(), gameReadySeconds, firstMoveSeconds, elapsedSeconds: (Date.now() - started) / 1000 }, null, 2), { mode: 0o600 });
+  await writeFile(resolve(directory, 'summary.json'), JSON.stringify({ ...outcome, opponent: engine.name, headless: !values.headed && values.headless, complete: outcome?.reason === 'Game finished' && outcome?.result !== '*', gameUrl: page.url(), gameReadySeconds, firstMoveSeconds, elapsedSeconds: (Date.now() - started) / 1000 }, null, 2), { mode: 0o600 });
   await context.close();
   if (videoPath) await rename(videoPath, resolve(directory, 'demo.webm'));
   if (videoPath && values['4k']) {

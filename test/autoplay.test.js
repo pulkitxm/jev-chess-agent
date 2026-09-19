@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { autoplay, validateProgress } from '../src/autoplay.js';
 import { fromHistory, candidates } from '../src/chess.js';
-import { readVisibleGame, startMaximum } from '../src/browser-game.js';
+import { readVisibleGame, startEngine } from '../src/browser-game.js';
 
 const decision = history => {
   const chess = fromHistory(history);
@@ -80,7 +80,7 @@ test('startup creates a fresh game when the site remembers an unfinished one', a
       click: async () => { clicked.push(name); state = name === 'New Game' ? 'Play' : 'Resign'; }
     })
   };
-  await startMaximum(page);
+  await startEngine(page);
   assert.deepEqual(clicked, ['New Game', 'Play']);
 });
 

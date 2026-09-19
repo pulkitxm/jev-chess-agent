@@ -11,7 +11,8 @@
     "play": "node --env-file-if-exists=.env src/run.js",
     "demo": "node --env-file-if-exists=.env src/run.js --demo",
     "record:4k": "node --env-file-if-exists=.env src/run.js --4k",
-    "attempt:win": "node scripts/attempt-win.js"
+    "attempt:win": "node scripts/attempt-win.js",
+    "play:beginner": "node --env-file-if-exists=.env src/run.js --opponent beginner --headless --4k --strategy development"
   },
   "dependencies": {
     "chess.js": "1.4.0",

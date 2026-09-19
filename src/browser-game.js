@@ -57,8 +57,12 @@ export function browserGame(page) {
   return { observe, play };
 }
 
-export async function startMaximum(page, signal) {
-  await page.goto('https://www.chess.com/play/computer/Komodo25', { waitUntil: 'domcontentloaded' });
+export const engines = { maximum: { name: 'Maximum', path: 'Komodo25' }, beginner: { name: 'Beginner', path: 'Komodo1' } };
+
+export async function startEngine(page, signal, opponent = 'maximum') {
+  const engine = engines[opponent];
+  if (!engine) throw new Error('Unknown engine');
+  await page.goto(`https://www.chess.com/play/computer/${engine.path}`, { waitUntil: 'domcontentloaded' });
   const deadline = Date.now() + 45000;
   while (Date.now() < deadline) {
     signal?.throwIfAborted();
@@ -78,7 +82,7 @@ export async function startMaximum(page, signal) {
     }
     const play = page.getByRole('button', { name: 'Play', exact: true });
     if (await play.isVisible()) {
-      if (!page.url().includes('/Komodo25')) throw new Error('Maximum is not selected');
+      if (!page.url().endsWith(`/${engine.path}`)) throw new Error(`${engine.name} is not selected`);
       try { await play.click({ timeout: 750 }); }
       catch (error) { if (error.name !== 'TimeoutError') throw error; }
     }
