@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Jev Chess Agent",
+  "version": "0.1.0",
+  "description": "Play chess.com computer bots with Jev selecting legal moves.",
+  "permissions": ["activeTab", "storage", "debugger"],
+  "host_permissions": ["http://127.0.0.1:4318/*", "https://www.chess.com/play/computer*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_popup": "popup.html" },
+  "content_scripts": [{ "matches": ["https://www.chess.com/play/computer*"], "js": ["content.js"] }]
+}
