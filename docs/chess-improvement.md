@@ -59,20 +59,32 @@ Sources:
 
 ## Tactical comparison and quiet-threat follow-up
 
-Two further Advanced matches on September 20 exposed separate problems:
+Six further Advanced matches on September 20 tested successive rules-only changes:
 
 | Implementation | Result | Jev moves |
 | --- | --- | --- |
 | Original compact-review, unchanged rerun | Loss by checkmate | 30 |
 | Explicit comparison of tactical outcomes | Loss by checkmate | 27 |
+| Quiet-threat lookahead | Loss by checkmate | 85 |
+| Position and endgame facts, trial 1 | Loss by checkmate | 43 |
+| Position and endgame facts, trial 2 | Loss by checkmate | 47 |
+| Explicit opening-development advice | Loss by checkmate | 48 |
 
-Both results passed the position, history, and final-choice audit. Recordings and raw decision logs remain local under `data/runs/2026-09-19T22-48-58-277Z` and `data/runs/2026-09-19T22-51-13-858Z`.
+Every result passed the position, history, and final-choice audit. The first three runs are under `data/runs/2026-09-19T22-48-58-277Z`, `data/runs/2026-09-19T22-51-13-858Z`, and `data/runs/2026-09-19T22-55-37-795Z`. The last three are under `data/attempts/2026-09-19T23-02-26-013Z`. Each has a complete PGN, decision log, and 4K video export. All six were losses, and longer games do not establish improved strength.
 
 In the first game, `14.Rad1` lost the queen for a knight even though moving the queen limited the detected loss to one pawn. Explicitly labeling the preferred tactical group changed a replayed Jev choice to `Qe4`, reducing the detected loss from six units to one. Every legal move stayed available. The revised prompt also avoided the detected loss on all six eligible historical regression positions, averaging 1,629 milliseconds per decision. Those positions are development data and do not measure independent playing strength.
 
 In the second game, `18.Bf4` looked harmless to the exchange checker, but the quiet reply `...d4` forced a piece loss. Compact-review now extends quiet pawn attacks, attacks on more valuable pieces, and knight forks through every legal response and the next opponent capture or mate. The same position then received a two-unit loss warning, and a replayed Jev decision selected `b3`, which had no loss detected by those checks. That replay took approximately 11.6 seconds. The calculations are bounded tactical assistance, with no external chess engine, opening book, candidate filtering, or substituted move.
 
-These two corrected decisions do not establish a win rate. Full-game validation of the expanded quiet-threat version is separate from those replays.
+The evaluator now includes positions where every move loses material, grading the best detected outcome and improvement over the original choice. A completed eight-position run at `data/evaluations/2026-09-19T23-09-25-736Z` improved all eight original decisions and matched the best detected outcome in all eight. Two positions had a detected no-loss option; six required limiting a loss or escaping mate. Average decision time was 5,960 milliseconds with concurrent local work. This selected development set is not an independent strength benchmark.
+
+Position descriptions now identify material balance, passed pawns, blockades, king approach, castling rights, and repeated pawn moves. Basic opening advice highlights unused minor pieces, central pawn development, and castling only among moves with an equally good detected tactical outcome. A replay of an unnecessary `Ng5` changed to `d3`, opening the bishop's path. A later unit-tested correction accounts for immediate recaptures of promoted pieces. These changes corrected specific failures but did not produce an engine-free Advanced win in the six measured games.
+
+## Separate engine-assisted strategy
+
+`engine-review` supplies Stockfish evaluations and principal variations for every legal move. Jev makes the final choice, with one review if it declines the engine's first recommendation. This is a different experiment from the rules-only runs. The PGN player label, summary, audit, and per-move engine records identify the assistance. Stockfish 19 was installed locally for validation. A live Jev API diagnostic selected the engine-advised `Qxf7#` in a mate-in-one position; that diagnostic alone is not a full-game win.
+
+Run it with `npm run play:advanced:assisted`. The original compact-review command remains available for engine-free comparisons.
 
 ## Further experiments
 

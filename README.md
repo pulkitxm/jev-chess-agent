@@ -73,7 +73,7 @@ The system has three jobs:
 
 The standalone runner reconstructs the position from the visible move list, including piece icons. This works with both canvas and DOM board themes. It does not send screenshots or use a vision model. The extension reads rendered piece elements instead.
 
-The rules library produces all legal moves. The local report for each option includes its chess notation, captures, resulting position, check, checkmate, and draw status. It also lists the opponent's legal replies, identifies immediate checkmates, and spells out material exchanges after forcing replies. Material uses conventional pawn units: pawn 1, knight 3, bishop 3, rook 5, queen 9. Legal recaptures on the same square are examined up to six captures further, allowing either side to decline an exchange. These narrow tactical calculations are not a complete positional search. No Stockfish, opening book, candidate filtering, or best-move override is used.
+The rules library produces all legal moves. The local report for each option includes its chess notation, captures, resulting position, check, checkmate, and draw status. It also lists the opponent's legal replies, identifies immediate checkmates, and spells out material exchanges after forcing replies. Material uses conventional pawn units: pawn 1, knight 3, bishop 3, rook 5, queen 9. Legal recaptures on the same square are examined up to six captures further, allowing either side to decline an exchange. These narrow tactical calculations are not a complete positional search. The rules-only strategies use no Stockfish, opening book, candidate filtering, or best-move override. The separate engine-review strategy uses Stockfish advice as described below.
 
 The move selector gives Jev the current position, previous moves, and this menu of legal choices through TypeSafe's Choice question. The request contains compact tactical summaries and a bounded sample of forcing replies, with a 32,000-character request budget. Every legal candidate remains available; complete tactical reports stay in local decision logs. If Jev chooses a detected material loss or immediate mate while an alternative without those detected problems exists, it gets one explicit warning and a second choice with every legal move still available. Jev's final answer is honored even if it ignores the warning. Decision logs contain both rounds and aggregate token usage. The service rejects any answer outside the menu. The extension checks that the board is still in the same position before clicking, and confirms the resulting position afterward.
 
@@ -179,3 +179,20 @@ npm run attempt:win -- --opponent advanced --strategy compact-review --games 3
 ```
 
 Audit an existing completed match with `node scripts/audit-match.js data/runs/<timestamp>`. The audit checks the PGN result, every white decision's position and history, and each played move against Jev's final answer. It rejects incomplete games, substituted moves, and inconsistent results. A successful audit can confirm a loss or draw as well as a win; inspect `won`.
+
+## Engine-assisted Advanced matches
+
+Install the standalone Stockfish executable, then run the explicitly assisted strategy:
+
+```sh
+brew install stockfish
+npm run play:advanced:assisted
+```
+
+The equivalent command is `npm run play:advanced -- --strategy engine-review`. Stockfish evaluates every legal move locally using the full game history. Jev receives the ranking, score, and a legal continuation for each option, then makes the final choice. A choice below the engine's first recommendation receives one review; the final Jev answer is honored even if it still differs. No move is substituted or removed from the menu.
+
+This materially changes the original experiment: any win is **Stockfish-assisted Jev**, not an engine-free Jev win. PGNs, summaries, decision logs, and audit output identify the assistance. Logs retain the engine version, search depth, recommended move, complete move evaluations, and Jev's actual answer. Engine failures stop the run rather than silently changing strategies.
+
+The adviser defaults to five seconds per position, at most depth 18, two threads, and 128 MB of hash. It uses the latest complete search iteration that covers every legal move, so actual depth varies. Set `STOCKFISH_PATH` to an executable path or `STOCKFISH_MOVETIME_MS` to a value from 50 to 60000 in the local `.env` to change the executable or search time. The executable is installed separately and is not bundled with this project. See the [Stockfish integration documentation](https://official-stockfish.github.io/docs/stockfish-wiki/Developers.html).
+
+For repeated attempts: `npm run attempt:win -- --opponent advanced --strategy engine-review --games 3`.
