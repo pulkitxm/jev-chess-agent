@@ -1,4 +1,7 @@
-export function semanticRequest(request, moves) {
+import { developmentFacts } from './development.js';
+
+export function semanticRequest(request, moves, { development = false } = {}) {
+  const developmentNotes = development ? developmentFacts(request.state.moveHistory, moves) : {};
   return {
     model: request.model,
     state: {
@@ -21,6 +24,7 @@ export function semanticRequest(request, moves) {
         const warnings = tactics.forcingReplies.filter(reply => reply.opponentCheckmates || reply.forcesMateAfterCheck || reply.netMaterialChangeAfterExchange < 0).sort((a, b) => Number(b.opponentCheckmates || b.forcesMateAfterCheck) - Number(a.opponentCheckmates || a.forcesMateAfterCheck) || a.netMaterialChangeAfterExchange - b.netMaterialChangeAfterExchange).slice(0, 3);
         return [move.uci, [
           `Move our ${move.piece} from ${move.from} to ${move.to} (${move.notation}).`,
+          developmentNotes[move.uci],
           move.captured ? `Captures an enemy ${move.captured}.` : 'Does not capture.',
           move.checkmate ? 'Wins the game immediately by checkmate.' : '',
           move.draw ? 'Ends the game in a draw.' : '',
