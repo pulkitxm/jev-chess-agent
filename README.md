@@ -174,6 +174,8 @@ Experimental shorter prompts are available with `npm run play:advanced -- --stra
 
 The compact prompts now explicitly distinguish the best detected tactical outcomes from worse ones, including positions where every move loses material. Compact-review also examines quiet attacks by cheaper pieces and knight forks through every legal response and the next opponent capture or mate. These limited calculations can take several seconds in crowded positions. Every legal move remains available, and Jev's final choice is still honored.
 
+Checking sacrifices also receive a bounded mate-in-two proof: every legal defense must allow an immediate checkmate. Compact prompts prioritize a proven win over material preservation. This changed a live rules-only Jev decision from declining a winning queen sacrifice to selecting it; see the diagnostic in the results report. Nonchecking mating plans and deeper mates remain outside this proof.
+
 Run a bounded sequence against Advanced, stopping on the first audited win:
 
 ```sh

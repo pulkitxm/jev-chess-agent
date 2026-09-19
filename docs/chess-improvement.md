@@ -96,6 +96,16 @@ The full local recording export completed successfully. Artifacts are under `dat
 
 The six latest rules-only trials produced zero wins and six losses. The one complete assisted trial produced one win. These different methods must be reported separately, and a single assisted game does not establish a reliable win rate or a win against Maximum.
 
+## Proving a winning sacrifice without Stockfish
+
+A live compact-review diagnostic rejected `Qb8+` in a position where the only legal defense is `Nxb8`, followed by `Rd8#`. It chose `Qxe6+` instead. The exchange calculation assigned the winning queen sacrifice a nine-unit material loss and did not represent the forced mating continuation.
+
+The extended tactical calculation now checks forcing mates in two. After a checking candidate, it enumerates every legal opponent reply and requires a legal immediate checkmate after each one. A single defense without mate disproves the claim. Terminal draws stop the search, and the calculation restores the original position and history. This is a bounded exhaustive proof, not a general evaluation, opening book, learned model, or external engine recommendation.
+
+Compact prompts prioritize these proven wins over material preservation and include a mating continuation for every defense. Every legal option remains available, and Jev still makes the final choice. The same live diagnostic then selected `Qb8+` without Stockfish advice, taking approximately 4.6 seconds. The before and after decisions are saved locally as `data/diagnostics/queen-sacrifice-before.json` and `data/diagnostics/queen-sacrifice-after.json`.
+
+All 64 tests and the extension build pass, including checks that distinguish a forced win from a cooperative mating line. This corrects a specific sacrifice failure. It does not establish perfect sacrifices, general mate search, improved model weights, or an engine-free Advanced win.
+
 ## Further experiments
 
 1. Build a fixed, independent tactical test set covering forks, pins, hanging queens, mate defense, promotion, and endgames. Lichess publishes CC0 puzzle data with solution moves and themes. Use solutions only for offline grading, never to choose live moves. Its puzzle FEN is before the opponent's first move, so apply that first move before testing the solver.
