@@ -36,3 +36,18 @@ test('mate-in-one replies are explicitly identified', () => {
   assert.equal(result.opponentCanCheckmateImmediately, true);
   assert.equal(result.forcingReplies.find(reply => reply.reply === 'Qh4#').opponentCheckmates, true);
 });
+
+test('a dangerous choice is reviewed once with every legal move still available', async () => {
+  const { chooseMove } = await import('../src/jev.js');
+  const history = ['e4', 'e6', 'Nf3', 'd5', 'exd5', 'exd5', 'Bb5+', 'c6'];
+  const requests = [];
+  const result = await chooseMove(history, { apiKey: 'test', fetchImpl: async (url, options) => {
+    requests.push(JSON.parse(options.body));
+    return { ok: true, json: async () => ({ answers: { move: { choice: 'b5c6', confidence: 0.5 } }, usage: { input_tokens: 10, output_tokens: 2 }, model: 'test' }) };
+  } });
+  assert.equal(requests.length, 2);
+  assert.deepEqual(Object.keys(requests[0].questions.move.criteria), Object.keys(requests[1].questions.move.criteria));
+  assert.equal(result.move.uci, 'b5c6');
+  assert.equal(result.decisionRounds.length, 2);
+  assert.equal(result.usage.input_tokens, 20);
+});

@@ -36,25 +36,58 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
   if (!apiKey) throw new Error('Set TYPESAFE_API_KEY in the local .env file');
   const { request, moves, fen } = makeRequest(history, model);
   const started = Date.now();
-  const response = await fetchImpl('https://api.typesafe.ai/v1/systemone', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000)
-  });
-  if (!response.ok) throw new Error(`TypeSafe returned HTTP ${response.status}. No move was played.`);
-  const result = await response.json();
-  const answer = result.answers?.move;
-  const selected = moves.find(move => move.uci === answer?.choice);
-  if (!selected) throw new Error('TypeSafe returned a move outside the legal candidate list');
-  if (!Number.isFinite(answer.confidence) || answer.confidence < 0 || answer.confidence > 1) throw new Error('Invalid confidence');
+  const rounds = [];
+  const ask = async payload => {
+    const response = await fetchImpl('https://api.typesafe.ai/v1/systemone', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000)
+    });
+    if (!response.ok) throw new Error(`TypeSafe returned HTTP ${response.status}. No move was played.`);
+    const result = await response.json();
+    const answer = result.answers?.move;
+    const selected = moves.find(move => move.uci === answer?.choice);
+    if (!selected) throw new Error('TypeSafe returned a move outside the legal candidate list');
+    if (!Number.isFinite(answer.confidence) || answer.confidence < 0 || answer.confidence > 1) throw new Error('Invalid confidence');
+    rounds.push({ choice: selected.uci, confidence: answer.confidence, usage: result.usage });
+    return { result, answer, selected };
+  };
+  let picked = await ask(request);
+  const warned = picked.selected.tactics;
+  const saferExists = moves.some(move => !move.tactics.opponentCanCheckmateImmediately && move.tactics.worstMaterialChangeInListedExchanges >= 0);
+  if (saferExists && (warned.opponentCanCheckmateImmediately || warned.worstMaterialChangeInListedExchanges < 0)) {
+    picked = await ask({
+      model,
+      state: {
+        ...request.state,
+        proposedMove: picked.selected.notation,
+        warning: 'Your proposed move permits a concrete material loss or immediate checkmate. Alternatives without that detected loss exist. Giving check alone does not compensate for losing a piece. Reconsider using the exchange lines; you remain the sole final move selector.',
+        proposedConsequences: warned
+      },
+      questions: { move: {
+        type: 'choice',
+        instructions: 'Select the best FINAL move. Prioritize avoiding immediate checkmate and losing material. A zero or positive materialChange is preferable to a negative value unless there is a concrete forced win. Do not sacrifice a bishop for a pawn or a rook for a bishop simply to give check. Every legal move is available, including the original proposal.',
+        criteria: Object.fromEntries(moves.map(move => [move.uci, {
+          notation: move.notation,
+          deliversCheckmate: move.checkmate,
+          allowsImmediateMate: move.tactics.opponentCanCheckmateImmediately,
+          materialChange: move.tactics.worstMaterialChangeInListedExchanges,
+          dangerousReplies: move.tactics.forcingReplies.filter(reply => reply.netMaterialChangeAfterExchange < 0 || reply.opponentCheckmates),
+          resultingFen: move.tactics.resultingFen
+        }]))
+      } }
+    });
+  }
+  const usage = rounds.reduce((sum, round) => ({ input_tokens: sum.input_tokens + (round.usage?.input_tokens || 0), output_tokens: sum.output_tokens + (round.usage?.output_tokens || 0) }), { input_tokens: 0, output_tokens: 0 });
   return {
     fen,
-    move: selected,
-    confidence: answer.confidence,
-    probabilities: answer.probabilities,
-    model: result.model,
-    usage: result.usage,
+    move: picked.selected,
+    confidence: picked.answer.confidence,
+    probabilities: picked.answer.probabilities,
+    model: picked.result.model,
+    usage,
+    decisionRounds: rounds,
     elapsedMs: Date.now() - started
   };
 }
