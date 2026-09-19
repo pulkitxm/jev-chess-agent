@@ -8,6 +8,9 @@ const { values } = parseArgs({ options: { limit: { type: 'string', default: '12'
 const limit = Number(values.limit);
 if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('Limit must be 1 to 100');
 const strategies = values.strategies.split(',');
+if (strategies.some(strategy => !['original', 'semantic', 'foresight', 'deliberate', 'development', 'compact', 'compact-review'].includes(strategy))) throw new Error('Unknown strategy');
+const outcome = move => ({ mate: move.checkmate ? 1 : move.tactics.opponentCanCheckmateImmediately || move.tactics.opponentCanForceMateAfterReply ? -1 : 0, material: move.tactics.worstMaterialChangeInListedExchanges });
+const compare = (a, b) => a.mate - b.mate || a.material - b.material;
 const files = [];
 async function scan(path) {
   for (const item of await readdir(path, { withFileTypes: true }).catch(() => [])) {
@@ -25,13 +28,15 @@ for (const file of files.sort()) {
     const t = row.move?.tactics;
     if (!t || !(t.worstMaterialChangeInListedExchanges < 0 || t.opponentCanCheckmateImmediately)) continue;
     const id = createHash('sha256').update(JSON.stringify(row.history)).digest('hex');
-    positions.set(id, { id, history: row.history });
+    positions.set(id, { id, history: row.history, originalMove: row.move.uci });
   }
 }
 const selected = [];
 for (const position of [...positions.values()].sort((a, b) => a.id.localeCompare(b.id))) {
-  const { moves } = makeRequest(position.history, undefined, { extendChecks: true });
-  if (moves.some(move => move.tactics.worstMaterialChangeInListedExchanges >= 0 && !move.tactics.opponentCanCheckmateImmediately && !move.tactics.opponentCanForceMateAfterReply)) selected.push(position);
+  const { moves } = makeRequest(position.history, undefined, { extendChecks: true, extendThreats: true });
+  const originalOutcome = outcome(moves.find(move => move.uci === position.originalMove));
+  const bestOutcome = moves.map(outcome).sort((a, b) => compare(b, a))[0];
+  if (compare(bestOutcome, originalOutcome) > 0) selected.push({ ...position, originalOutcome, bestOutcome, referenceMoves: moves });
   if (selected.length === limit) break;
 }
 if (!selected.length) throw new Error('No saved avoidable tactical-error positions found');
@@ -39,19 +44,24 @@ const directory = resolve(`data/evaluations/${new Date().toISOString().replace(/
 await mkdir(directory, { recursive: true, mode: 0o700 });
 const results = [];
 for (const position of selected) {
+  const { referenceMoves, ...record } = position;
   for (const strategy of strategies) {
     const decision = await chooseMove(position.history, { apiKey: process.env.TYPESAFE_API_KEY, strategy });
-    const t = decision.move.tactics;
+    const referenceMove = referenceMoves.find(move => move.uci === decision.move.uci);
+    const t = referenceMove.tactics;
     const avoidedDetectedLoss = t.worstMaterialChangeInListedExchanges >= 0 && !t.opponentCanCheckmateImmediately && !t.opponentCanForceMateAfterReply;
-    results.push({ ...position, strategy, avoidedDetectedLoss, decision });
+    const selectedOutcome = outcome(referenceMove);
+    const achievedBestDetectedOutcome = compare(selectedOutcome, position.bestOutcome) === 0;
+    const improvedOriginalOutcome = compare(selectedOutcome, position.originalOutcome) > 0;
+    results.push({ ...record, strategy, avoidedDetectedLoss, achievedBestDetectedOutcome, improvedOriginalOutcome, selectedOutcome, decision });
     await writeFile(join(directory, 'results.json'), JSON.stringify(results, null, 2), { mode: 0o600 });
-    console.log(`${position.id.slice(0, 8)} ${strategy}: ${decision.move.notation}, detected loss avoided: ${avoidedDetectedLoss}, ${decision.elapsedMs}ms`);
+    console.log(`${position.id.slice(0, 8)} ${strategy}: ${decision.move.notation}, best detected outcome: ${achievedBestDetectedOutcome}, improved original: ${improvedOriginalOutcome}, ${decision.elapsedMs}ms`);
   }
 }
 const summary = strategies.map(strategy => {
   const rows = results.filter(row => row.strategy === strategy);
-  return { strategy, positions: rows.length, avoidedDetectedLoss: rows.filter(row => row.avoidedDetectedLoss).length, averageMs: Math.round(rows.reduce((sum, row) => sum + row.decision.elapsedMs, 0) / rows.length) };
+  return { strategy, positions: rows.length, avoidedDetectedLoss: rows.filter(row => row.avoidedDetectedLoss).length, achievedBestDetectedOutcome: rows.filter(row => row.achievedBestDetectedOutcome).length, improvedOriginalOutcome: rows.filter(row => row.improvedOriginalOutcome).length, averageMs: Math.round(rows.reduce((sum, row) => sum + row.decision.elapsedMs, 0) / rows.length) };
 });
-await writeFile(join(directory, 'summary.json'), JSON.stringify({ limitation: 'Selected historical blunders with a locally detected safer alternative. Not a held-out strength or rating benchmark. No engine evaluations or win-rate claims.', summary }, null, 2));
+await writeFile(join(directory, 'summary.json'), JSON.stringify({ limitation: 'Selected historical blunders with a better outcome under the same current tactical checks, including positions where every move loses material. Not a held-out strength or rating benchmark. No external engine evaluations or win-rate claims.', summary }, null, 2));
 console.log(JSON.stringify(summary));
 console.log(directory);
