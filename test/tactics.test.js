@@ -51,3 +51,12 @@ test('a dangerous choice is reviewed once with every legal move still available'
   assert.equal(result.decisionRounds.length, 2);
   assert.equal(result.usage.input_tokens, 20);
 });
+
+test('the crowded position that exceeded the API limit stays within the request budget', async () => {
+  const { makeRequest } = await import('../src/jev.js');
+  const history = ['e4', 'd5', 'exd5', 'Nf6', 'Bb5+', 'Bd7', 'Bxd7+', 'Qxd7', 'c4', 'c6', 'dxc6', 'Nxc6', 'Nf3', 'e5', 'O-O', 'e4', 'Qe2', 'O-O-O', 'Ng5', 'Nd4', 'Qe3', 'Ng4', 'Qxe4', 'f5', 'Qf4', 'Ne2+', 'Kh1', 'Nxf4', 'Nc3', 'Qd3', 'Re1', 'Nxf2+', 'Kg1', 'Bc5'];
+  const { request, moves } = makeRequest(history);
+  assert.ok(JSON.stringify(request).length <= 32000);
+  assert.equal(Object.keys(request.questions.move.criteria).length, moves.length);
+  assert.equal(moves.length, fromHistory(history).moves().length);
+});
