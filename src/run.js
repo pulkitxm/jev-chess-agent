@@ -11,8 +11,6 @@ import { loadSession } from './session.js';
 
 const { values } = parseArgs({ options: {
   demo: { type: 'boolean', default: false },
-  headless: { type: 'boolean', default: true },
-  headed: { type: 'boolean', default: false },
   opponent: { type: 'string', default: 'maximum' },
   '4k': { type: 'boolean', default: false },
   strategy: { type: 'string', default: 'original' },
@@ -36,7 +34,7 @@ process.once('SIGTERM', stop);
 const profile = resolve('data/runner-profile');
 const size = values['4k'] ? { width: 1920, height: 1080 } : { width: 1280, height: 900 };
 const context = await chromium.launchPersistentContext(profile, {
-  channel: 'chrome', headless: !values.headed && values.headless,
+  channel: 'chrome', headless: false,
   viewport: size,
   deviceScaleFactor: 1,
   recordVideo: { dir: directory, size }
@@ -78,7 +76,7 @@ try {
   await page.screenshot({ path: resolve(directory, 'error-screen.png') }).catch(() => {});
   if (!controller.signal.aborted) process.exitCode = 1;
 } finally {
-  await writeFile(resolve(directory, 'summary.json'), JSON.stringify({ ...outcome, opponent: engine.name, headless: !values.headed && values.headless, complete: outcome?.reason === 'Game finished' && outcome?.result !== '*', gameUrl: page.url(), gameReadySeconds, firstMoveSeconds, elapsedSeconds: (Date.now() - started) / 1000 }, null, 2), { mode: 0o600 });
+  await writeFile(resolve(directory, 'summary.json'), JSON.stringify({ ...outcome, opponent: engine.name, headless: false, complete: outcome?.reason === 'Game finished' && outcome?.result !== '*', gameUrl: page.url(), gameReadySeconds, firstMoveSeconds, elapsedSeconds: (Date.now() - started) / 1000 }, null, 2), { mode: 0o600 });
   await context.close();
   if (videoPath) await rename(videoPath, resolve(directory, 'demo.webm'));
   if (videoPath && values['4k']) {

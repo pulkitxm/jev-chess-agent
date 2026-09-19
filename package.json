@@ -12,7 +12,7 @@
     "demo": "node --env-file-if-exists=.env src/run.js --demo",
     "record:4k": "node --env-file-if-exists=.env src/run.js --4k",
     "attempt:win": "node scripts/attempt-win.js",
-    "play:beginner": "node --env-file-if-exists=.env src/run.js --opponent beginner --headless --4k --strategy development",
+    "play:beginner": "node --env-file-if-exists=.env src/run.js --opponent beginner --4k --strategy development",
     "session:setup": "python3 -m venv data/session-tools && data/session-tools/bin/pip install -r scripts/session-requirements.txt",
     "session:export": "data/session-tools/bin/python scripts/export-session.py"
   },

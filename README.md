@@ -33,15 +33,15 @@ For a complete live match with a 4K, 16:9 MP4 export:
 npm run record:4k
 ```
 
-This single command starts a dedicated headless Chrome session, opens Maximum, lets Jev choose every move, continuously records a readable 1920 by 1080 browser layout and scales it to a 3840 by 2160 export, and exports `match-4k.mp4` alongside the PGN and decision logs. The export trims initial loading, keeps the entire match and result screen, and uses H.264 at 30 frames per second. The 4K export is upscaled from continuous 1080p browser video. It preserves capture timing and repeats frames where needed; it does not create additional motion detail. No audio is recorded. The FFmpeg encoder is installed with the project dependencies.
+This single command starts a dedicated visible Chrome session, opens Maximum, lets Jev choose every move, continuously records a readable 1920 by 1080 browser layout and scales it to a 3840 by 2160 export, and exports `match-4k.mp4` alongside the PGN and decision logs. The export trims initial loading, keeps the entire match and result screen, and uses H.264 at 30 frames per second. The 4K export is upscaled from continuous 1080p browser video. It preserves capture timing and repeats frames where needed; it does not create additional motion detail. No audio is recorded. The FFmpeg encoder is installed with the project dependencies.
 
-Headless mode is the default. Use `--headed` only when you want a visible window for manual site interaction. To choose the local output folder, use `npm run record:4k -- --output data/my-match`. Each match makes paid TypeSafe requests. A complete recording does not imply a win. Check `complete` in `summary.json`; an interrupted game saves its available footage. The source `demo.webm` is retained locally for recovery if export fails.
+The runner always opens a visible Chrome window with its own persistent profile. To choose the local output folder, use `npm run record:4k -- --output data/my-match`. Each match makes paid TypeSafe requests. A complete recording does not imply a win. Check `complete` in `summary.json`; an interrupted game saves its available footage. The source `demo.webm` is retained locally for recovery if export fails.
 
 The full runner plays through the game result without a default move or time cutoff. Use Ctrl+C to stop early and finalize the video. Optional `--max-moves` and `--seconds` explicitly limit a run; such a recording is incomplete unless the game ends first.
 
 ```sh
 npm run demo -- --max-moves 5 --seconds 90
-npm run play -- --headless --max-moves 50 --seconds 300
+npm run play -- --max-moves 50 --seconds 300
 ```
 
 Each run saves `game.pgn`, `decisions.jsonl`, and `summary.json`, plus `demo.webm` for standard runs or `match-4k.mp4` and `recording.json` for 4K runs under `data/runs/<timestamp>/`. The terminal prints the exact folder. Setup time is separate from the play time limit. The video captures the browser viewport, not the desktop or microphone.
@@ -148,7 +148,7 @@ The experimental `foresight` strategy extends opponent checking moves through ev
 
 ## Beginner engine
 
-`npm run play:beginner` runs one complete match against the Beginner engine in headless Chrome, using the experimental development strategy, and exports the recording to 4K. The opponent name is recorded separately from Maximum in the PGN and summary. You can also select it with `npm run play -- --opponent beginner --headless --4k`. A win against Beginner is not a win against Maximum. Site verification challenges can block headless startup; the runner saves an error screenshot and stops rather than claiming a played game.
+`npm run play:beginner` runs one complete match against the Beginner engine in visible Chrome, using the experimental development strategy, and exports the recording to 4K. The opponent name is recorded separately from Maximum in the PGN and summary. You can also select it with `npm run play -- --opponent beginner --4k`. A win against Beginner is not a win against Maximum. Site verification challenges can block startup; the runner saves an error screenshot and stops rather than claiming a played game.
 
 The experimental `development` strategy includes the extended checking lines plus factual descriptions of repeated piece moves, initial minor-piece development, central pawn moves, and blocked central pawns. Jev still makes the final choice from all legal moves.
 
@@ -164,4 +164,4 @@ npm run play:beginner
 
 The exporter selects Chrome's last-used profile. To specify one, use `npm run session:export -- --profile "Default"` or a numbered profile such as `"Profile 1"`. It reads only chess.com cookie rows, decrypts them using Chrome's existing macOS Keychain entry, and writes `data/auth/chess-session.json` with permissions 600 inside a directory with permissions 700. Temporary databases contain only chess.com rows and are deleted after export. Cookie values and the Keychain password are never printed. macOS may require access approval for the calling application or its Keychain request; the script does not bypass those controls.
 
-The cookie file and the Python environment under `data/session-tools` are ignored by Git. The runner automatically imports the default cookie file before navigating. To use a different private file, set `CHESS_SESSION_FILE` to its path in the ignored `.env`; do not paste cookie values into tracked configuration. The runner rejects cookies outside chess.com and files readable by other users. An imported session does not guarantee that a headless browser will pass site verification. LocalStorage and other sites' sessions are not exported.
+The cookie file and the Python environment under `data/session-tools` are ignored by Git. The runner automatically imports the default cookie file before navigating. To use a different private file, set `CHESS_SESSION_FILE` to its path in the ignored `.env`; do not paste cookie values into tracked configuration. The runner rejects cookies outside chess.com and files readable by other users. An imported session does not guarantee that Chrome will pass site verification. LocalStorage and other sites' sessions are not exported.
