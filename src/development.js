@@ -25,6 +25,7 @@ export function developmentFacts(history, moves) {
       if (previousMoves) statements.push(`REPEATED PIECE MOVE: this piece has already moved ${previousMoves} times. Other undeveloped minor pieces remain on ${undeveloped.join(', ') || 'none'}. Repetition needs a concrete tactical reason.`);
     }
     if (opening && move.piece === 'pawn' && ['d4', 'e4', 'd5', 'e5'].includes(move.to)) statements.push('CENTER: places a pawn in the central four squares.');
+    if (opening && move.piece === 'pawn' && previousMoves && !move.captured && undeveloped.length) statements.push('DEVELOPMENT DELAY: moves the same pawn again while unused knights or bishops still need development.');
     if (opening && move.piece === 'queen' && !move.captured) statements.push('EARLY QUEEN MOVE: minor-piece development and king safety may be more urgent.');
     if (move.notation.startsWith('O-O')) statements.push('KING SAFETY: castles and brings a rook toward the center.');
     if (opening && ['bishop', 'knight'].includes(move.piece)) {

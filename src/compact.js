@@ -1,7 +1,10 @@
 import { developmentFacts } from './development.js';
+import { fromHistory } from './chess.js';
+import { positionFacts } from './position-facts.js';
 
 export function compactRequest(request, moves) {
   const development = developmentFacts(request.state.moveHistory, moves);
+  const position = positionFacts(fromHistory(request.state.moveHistory), moves);
   const mateRisk = move => move.tactics.opponentCanCheckmateImmediately || move.tactics.opponentCanForceMateAfterReply;
   const mating = moves.filter(move => move.checkmate);
   const surviving = moves.filter(move => !mateRisk(move));
@@ -15,7 +18,7 @@ export function compactRequest(request, moves) {
     const outcome = move.checkmate ? 'CHECKMATE: win now' : tactics.opponentCanCheckmateImmediately || tactics.opponentCanForceMateAfterReply ? 'LOSE BY CHECKMATE' : move.draw ? 'DRAW now' : loss < 0 ? `LOSE ${-loss} material units` : loss > 0 ? `GAIN ${loss} material units` : 'No detected material loss';
     const threat = [...tactics.forcingReplies].sort((a, b) => Number(b.opponentCheckmates || b.forcesMateAfterReply) - Number(a.opponentCheckmates || a.forcesMateAfterReply) || a.netMaterialChangeAfterExchange - b.netMaterialChangeAfterExchange)[0];
     const comparison = preferredIds.has(move.uci) ? 'PREFERRED TACTICAL GROUP.' : mating.length ? 'MISSES AVAILABLE CHECKMATE.' : mateRisk(move) && surviving.length ? 'AVOID: allows forced mate when an alternative avoids it.' : `INFERIOR TACTICAL OUTCOME: ${bestMaterial - loss} material units worse than the preferred group.`;
-    return [`${move.notation}: ${move.piece} ${move.from} to ${move.to}. ${comparison} ${outcome}.`, development[move.uci], loss < 0 || outcome === 'LOSE BY CHECKMATE' ? `Refutation: ${threat?.exchangeLine.join(' ') || 'none'}.` : '', move.promotion ? `Promotes to ${move.promotion}.` : ''].filter(Boolean).join(' ');
+    return [`${move.notation}: ${move.piece} ${move.from} to ${move.to}. ${comparison} ${outcome}.`, development[move.uci], position.notes[move.uci], loss < 0 || outcome === 'LOSE BY CHECKMATE' ? `Refutation: ${threat?.exchangeLine.join(' ') || 'none'}.` : '', move.promotion ? `Promotes to ${move.promotion}.` : ''].filter(Boolean).join(' ');
   };
   return {
     model: request.model,
@@ -24,6 +27,7 @@ export function compactRequest(request, moves) {
       pieces: request.state.pieces,
       recentMoves: request.state.moveHistory.slice(-8),
       inCheck: request.state.inCheck,
+      position: position.state,
       advisoryChoices: request.state.perspectives,
       previousProposal: request.state.proposedMove,
       reviewWarning: request.state.warning,
