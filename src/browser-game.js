@@ -65,9 +65,17 @@ export async function startMaximum(page, signal) {
     if (!isBotUrl(page.url())) throw new Error('Site redirected away from the bot page. No login or human-game automation was attempted.');
     if (await page.getByRole('button', { name: 'Resign', exact: true }).isVisible()) return;
     const onboarding = page.getByRole('button', { name: 'Start', exact: true });
-    if (await onboarding.isVisible()) { await onboarding.click(); continue; }
+    if (await onboarding.isVisible()) {
+      try { await onboarding.click({ timeout: 750 }); }
+      catch (error) { if (error.name !== 'TimeoutError') throw error; }
+      continue;
+    }
     const newGame = page.getByRole('button', { name: 'New Game', exact: true });
-    if (await newGame.isVisible()) { await newGame.click(); continue; }
+    if (await newGame.isVisible()) {
+      try { await newGame.click({ timeout: 750 }); }
+      catch (error) { if (error.name !== 'TimeoutError') throw error; }
+      continue;
+    }
     const play = page.getByRole('button', { name: 'Play', exact: true });
     if (await play.isVisible()) {
       if (!page.url().includes('/Komodo25')) throw new Error('Maximum is not selected');
