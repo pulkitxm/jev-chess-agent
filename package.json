@@ -7,14 +7,19 @@
     "start": "node --env-file-if-exists=.env src/server.js",
     "build": "node scripts/build.js",
     "test": "node --test",
-    "choose": "node --env-file-if-exists=.env src/cli.js"
+    "choose": "node --env-file-if-exists=.env src/cli.js",
+    "play": "node --env-file-if-exists=.env src/run.js",
+    "demo": "node --env-file-if-exists=.env src/run.js --demo"
   },
   "dependencies": {
-    "chess.js": "1.4.0"
+    "chess.js": "1.4.0",
+    "playwright": "^1.63.0"
   },
   "devDependencies": {
     "esbuild": "0.25.12",
     "jsdom": "26.1.0"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  }
 }
