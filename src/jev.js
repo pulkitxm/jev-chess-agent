@@ -59,8 +59,8 @@ export function makeRequest(history, model = 'jev-1.13.0', { extendChecks = fals
 
 export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchImpl = fetch, signal, strategy = 'original' } = {}) {
   if (!apiKey) throw new Error('Set TYPESAFE_API_KEY in the local .env file');
-  const { request, moves, fen } = makeRequest(history, model, { extendChecks: ['foresight', 'deliberate'].includes(strategy) });
   const started = Date.now();
+  const { request, moves, fen } = makeRequest(history, model, { extendChecks: ['foresight', 'deliberate'].includes(strategy) });
   const rounds = [];
   const ask = async payload => {
     const response = await fetchImpl('https://api.typesafe.ai/v1/systemone', {
