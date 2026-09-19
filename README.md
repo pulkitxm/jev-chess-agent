@@ -33,9 +33,9 @@ For a complete live match with a native 4K, 16:9 MP4 export:
 npm run record:4k
 ```
 
-This single command starts a dedicated Chrome window, opens Maximum, lets Jev choose every move, records the actual browser at 3840 by 2160, and exports `match-4k.mp4` alongside the PGN and decision logs. The export removes the loading sequence, keeps the entire match and result screen, and uses H.264 at 30 frames per second. It does not upscale a smaller recording. Browser capture may repeat frames between screen updates. No audio is recorded. The FFmpeg encoder is installed with the project dependencies.
+This single command starts a dedicated Chrome window, opens Maximum, lets Jev choose every move, uses a readable 1920 by 1080 page layout rendered at double pixel density for a sharp 3840 by 2160 recording, and exports `match-4k.mp4` alongside the PGN and decision logs. Capture starts once the board is ready, keeps the entire match and result screen, and exports H.264 at 30 frames per second. It does not upscale a smaller recording. Live browser frames are captured roughly every 100 milliseconds plus capture time, with their real timing preserved; the 30 fps export repeats frames between captures. No audio is recorded. The FFmpeg encoder is installed with the project dependencies.
 
-If the site permits background operation, use `npm run record:4k -- --headless`. To choose the local output folder, use `npm run record:4k -- --output data/my-match`. Each match makes paid TypeSafe requests. A complete recording does not imply a win. Check `complete` in `summary.json`; an interrupted or failed game still saves its available footage.
+If the site permits background operation, use `npm run record:4k -- --headless`. To choose the local output folder, use `npm run record:4k -- --output data/my-match`. Each match makes paid TypeSafe requests. A complete recording does not imply a win. Check `complete` in `summary.json`; an interrupted game saves its available footage. If capture or export fails, temporary frames are retained locally for recovery.
 
 The full runner plays through the game result without a default move or time cutoff. Use Ctrl+C to stop early and finalize the video. Optional `--max-moves` and `--seconds` explicitly limit a run; such a recording is incomplete unless the game ends first.
 
@@ -44,7 +44,7 @@ npm run demo -- --max-moves 5 --seconds 90
 npm run play -- --headless --max-moves 50 --seconds 300
 ```
 
-Each run saves `demo.webm`, `game.pgn`, `decisions.jsonl`, and `summary.json` under `data/runs/<timestamp>/`. The terminal prints the exact folder. Setup time is separate from the play time limit. The video captures the browser viewport, not the desktop or microphone.
+Each run saves `game.pgn`, `decisions.jsonl`, and `summary.json`, plus `demo.webm` for standard runs or `match-4k.mp4` and `recording.json` for 4K runs under `data/runs/<timestamp>/`. The terminal prints the exact folder. Setup time is separate from the play time limit. The video captures the browser viewport, not the desktop or microphone.
 
 The runner uses its own profile at `data/runner-profile`. It does not access your usual Chrome profile or copy your login cookies. It can play as a guest when chess.com permits this. Site challenges or login requirements may prevent automatic startup. Only one runner can use the profile at a time.
 
