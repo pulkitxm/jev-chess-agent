@@ -24,9 +24,9 @@ export async function autoplay({ observe, choose, play, save, log = console.log,
     if (history.length !== lastSaved) { await save(chess); lastSaved = history.length; }
     if (chess.isGameOver()) return { result: gameResult(chess), decisions, history, reason: 'Game finished' };
     if (!observed.active) return { result: '*', decisions, history, reason: 'Board is no longer active' };
-    if (decisions >= maxMoves) return { result: '*', decisions, history, reason: 'Move limit reached' };
     if (!observed.latest) throw new Error('Board is showing an earlier move');
     if (chess.turn() !== color) { await sleep(100); continue; }
+    if (decisions >= maxMoves) return { result: '*', decisions, history, reason: 'Move limit reached' };
     await sleep(150);
     const stable = await observe();
     if (JSON.stringify(stable.history) !== JSON.stringify(history)) continue;

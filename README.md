@@ -120,3 +120,5 @@ The automated suite covers legal move enumeration, castling, en passant, underpr
 A complete initial game was played against Maximum using the Jev service and interactive browser controls. Maximum won by checkmate on move 21. This demonstrated working interaction, including castling, but weak chess decisions.
 
 The dashboard was opened and visually checked in a browser. The extension has not been verified in an uninterrupted installed-extension game. Standalone runner tests separately cover autonomous turns, canvas move history, cancellation, stale decisions, and game-over handling.
+
+The standalone runner completed a live five-decision demo against Maximum in about 30 seconds, including browser setup, and finalized a browser video without interactive orchestration between turns. This verifies automatic play and recording, not a win against Maximum.
