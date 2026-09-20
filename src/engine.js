@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
+import { Chess } from 'chess.js';
 import { fromHistory } from './chess.js';
 
 export function parseEngineInfo(line) {
@@ -84,7 +85,7 @@ export async function analyzePosition(history, { signal, executable = process.en
     if (signal?.aborted) abort();
   });
   for (const line of result.lines) {
-    const replay = fromHistory(history);
+    const replay = new Chess(chess.fen());
     line.san = line.variation.slice(0, 8).map(move => replay.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: move[4] }).san);
   }
   return { ...result, movetime, requestedDepth: depth, elapsedMs: Date.now() - started };

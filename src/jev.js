@@ -62,12 +62,23 @@ export function makeRequest(history, model = 'jev-1.13.0', { extendChecks = fals
   return { request: boundRequest(request, moves), moves, fen: chess.fen() };
 }
 
+function engineContext(history, model) {
+  const chess = fromHistory(history);
+  if (chess.isGameOver()) throw new Error('The game is over');
+  const moves = candidates(chess);
+  if (moves.length > 255) throw new Error('Too many legal moves for one Choice question');
+  return { moves, fen: chess.fen(), request: { model, state: { sideToMove: chess.turn() === 'w' ? 'White' : 'Black', pieces: describeBoard(chess), moveHistory: chess.history() } } };
+}
+
 export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchImpl = fetch, signal, strategy = 'original', analyzeImpl = analyzePosition } = {}) {
   if (!apiKey) throw new Error('Set TYPESAFE_API_KEY in the local .env file');
+  if (!['original', 'semantic', 'foresight', 'deliberate', 'development', 'compact', 'compact-review', 'engine-review'].includes(strategy)) throw new Error('Unknown decision strategy');
   const started = Date.now();
-  const { request, moves, fen } = makeRequest(history, model, { extendChecks: ['foresight', 'deliberate', 'development', 'compact', 'compact-review'].includes(strategy), extendThreats: strategy === 'compact-review' });
+  const { request, moves, fen } = strategy === 'engine-review' ? engineContext(history, model) : makeRequest(history, model, { extendChecks: ['foresight', 'deliberate', 'development', 'compact', 'compact-review'].includes(strategy), extendThreats: strategy === 'compact-review' });
+  const preparationMs = Date.now() - started;
   const rounds = [];
   const ask = async payload => {
+    const roundStarted = Date.now();
     const response = await fetchImpl('https://api.typesafe.ai/v1/systemone', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -84,11 +95,12 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
       if (!moves.some(move => move.uci === value.choice)) throw new Error('An advisory answer is not a legal move');
       return [name, value.choice];
     }));
-    rounds.push({ choice: selected.uci, confidence: answer.confidence, usage: result.usage, perspectives });
+    rounds.push({ choice: selected.uci, confidence: answer.confidence, usage: result.usage, perspectives, elapsedMs: Date.now() - roundStarted });
     return { result, answer, selected };
   };
-  if (!['original', 'semantic', 'foresight', 'deliberate', 'development', 'compact', 'compact-review', 'engine-review'].includes(strategy)) throw new Error('Unknown decision strategy');
+  const engineStarted = Date.now();
   const engineAdvice = strategy === 'engine-review' ? await analyzeImpl(history, { signal }) : undefined;
+  const engineMs = Date.now() - engineStarted;
   const initial = engineAdvice ? engineRequest(request, moves, engineAdvice) : strategy.startsWith('compact') ? compactRequest(request, moves) : strategy !== 'original' ? semanticRequest(request, moves, { development: strategy === 'development' }) : request;
   if (strategy === 'deliberate') {
     initial.questions.defense = { ...initial.questions.move, instructions: 'Which legal move best defends our king, queen, and other pieces against the strongest opponent reply? Prefer preventing mate and serious material losses. Compare the supplied exchange warnings. Do not favor a check or capture merely because it is forcing.' };
@@ -98,9 +110,13 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
     initial.questions.defense = { ...initial.questions.move, instructions: 'Select the legal move with the best immediate tactical outcome from our perspective: first our checkmate, then avoiding opponent checkmate, then the largest material gain or smallest material loss. No detected loss is preferable to any detected loss. When tactical outcomes are equal prefer developing unused pieces or castling. A check is not compensation for material loss.' };
   }
   let picked = await ask(initial);
-  const warned = picked.selected.tactics;
-  const saferExists = moves.some(move => !move.tactics.opponentCanCheckmateImmediately && !move.tactics.opponentCanForceMateAfterReply && move.tactics.worstMaterialChangeInListedExchanges >= 0);
-  const tacticalWarning = !warned.forcedMate && (queenLoss(picked.selected) || warned.opponentCanCheckmateImmediately || warned.opponentCanForceMateAfterReply || (saferExists && warned.worstMaterialChangeInListedExchanges < 0));
+  let saferExists = false;
+  let tacticalWarning = false;
+  if (!engineAdvice) {
+    const warned = picked.selected.tactics;
+    saferExists = moves.some(move => !move.tactics.opponentCanCheckmateImmediately && !move.tactics.opponentCanForceMateAfterReply && move.tactics.worstMaterialChangeInListedExchanges >= 0);
+    tacticalWarning = !warned.forcedMate && (queenLoss(picked.selected) || warned.opponentCanCheckmateImmediately || warned.opponentCanForceMateAfterReply || (saferExists && warned.worstMaterialChangeInListedExchanges < 0));
+  }
   if (engineAdvice) {
     if (picked.selected.uci !== engineAdvice.lines.find(line => line.rank === 1).move) picked = await ask(engineRequest(request, moves, engineAdvice, picked.selected.uci));
   } else if (strategy === 'deliberate' || strategy === 'compact-review' || tacticalWarning) {
@@ -122,6 +138,8 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
     picked = await ask(strategy.startsWith('compact') ? compactRequest(review, moves) : strategy !== 'original' ? semanticRequest(review, moves, { development: strategy === 'development' }) : review);
   }
   const usage = rounds.reduce((sum, round) => ({ input_tokens: sum.input_tokens + (round.usage?.input_tokens || 0), output_tokens: sum.output_tokens + (round.usage?.output_tokens || 0) }), { input_tokens: 0, output_tokens: 0 });
+  const elapsedMs = Date.now() - started;
+  const modelMs = rounds.reduce((sum, round) => sum + round.elapsedMs, 0);
   return {
     fen,
     move: picked.selected,
@@ -132,6 +150,7 @@ export async function chooseMove(history, { apiKey, model = 'jev-1.13.0', fetchI
     decisionRounds: rounds,
     strategy,
     engineAdvice,
-    elapsedMs: Date.now() - started
+    timings: { preparationMs, engineMs, modelMs, otherMs: elapsedMs - preparationMs - engineMs - modelMs },
+    elapsedMs
   };
 }

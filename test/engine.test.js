@@ -91,6 +91,10 @@ test('engine advice retains every legal option and never overrides the final Jev
   assert.equal(requests.length, 2);
   assert.equal(result.move.uci, 'f2f3');
   assert.equal(result.engineAdvice.engine, 'Stockfish fixture');
+  assert.equal(result.move.tactics, undefined);
+  assert.ok(Object.values(result.timings).every(value => Number.isFinite(value) && value >= 0));
+  assert.equal(Object.values(result.timings).reduce((sum, value) => sum + value, 0), result.elapsedMs);
+  assert.equal(result.timings.modelMs, result.decisionRounds.reduce((sum, round) => sum + round.elapsedMs, 0));
   for (const request of requests) assert.equal(Object.keys(request.questions.move.criteria).length, 20);
   assert.equal(requests[1].state.previousChoice, 'f2f3');
 });
