@@ -25,7 +25,7 @@ export function completeIteration(iterations, legal) {
   throw new Error('Stockfish did not return a complete evaluation of every legal move');
 }
 
-export async function analyzePosition(history, { signal, executable = process.env.STOCKFISH_PATH || 'stockfish', movetime = Number(process.env.STOCKFISH_MOVETIME_MS || 5000), depth = 18, timeoutMs = movetime + 10000, spawnImpl = spawn } = {}) {
+export async function analyzePosition(history, { signal, executable = process.env.STOCKFISH_PATH || 'stockfish', movetime = Number(process.env.STOCKFISH_MOVETIME_MS || 1000), depth = 18, timeoutMs = movetime + 10000, spawnImpl = spawn } = {}) {
   if (!Number.isInteger(movetime) || movetime < 50 || movetime > 60000 || !Number.isInteger(depth) || depth < 1 || depth > 30 || !Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error('Invalid Stockfish search limits');
   signal?.throwIfAborted();
   const chess = fromHistory(history);

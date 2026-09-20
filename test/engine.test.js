@@ -4,7 +4,8 @@ import { EventEmitter } from 'node:events';
 import { PassThrough, Writable } from 'node:stream';
 import { analyzePosition, completeIteration, parseEngineInfo } from '../src/engine.js';
 import { fromHistory } from '../src/chess.js';
-import { chooseMove } from '../src/jev.js';
+import { chooseMove, makeRequest } from '../src/jev.js';
+import { engineRequest } from '../src/engine-review.js';
 
 function fixture(history, { hang = false } = {}) {
   const legal = fromHistory(history).moves({ verbose: true }).map(move => `${move.from}${move.to}${move.promotion || ''}`);
@@ -103,4 +104,18 @@ test('failed engine analysis stops before asking Jev or silently falling back', 
   let called = false;
   await assert.rejects(chooseMove([], { apiKey: 'test', strategy: 'engine-review', analyzeImpl: async () => { throw new Error('Engine failed'); }, fetchImpl: async () => { called = true; } }), /Engine failed/);
   assert.equal(called, false);
+});
+
+test('omitting unused tactical calculations preserves the assisted model request', async () => {
+  const history = ['e4', 'e5', 'Nf3', 'Nc6'];
+  const analysis = await analyzePosition(history, { spawnImpl: fixture(history).spawnImpl, movetime: 50 });
+  const full = makeRequest(history);
+  const expected = engineRequest(full.request, full.moves, analysis);
+  const requests = [];
+  const choice = analysis.lines.find(line => line.rank === 1).move;
+  await chooseMove(history, { apiKey: 'test', strategy: 'engine-review', analyzeImpl: async () => analysis, fetchImpl: async (url, options) => {
+    requests.push(JSON.parse(options.body));
+    return { ok: true, json: async () => ({ answers: { move: { choice, confidence: 0.8 } } }) };
+  } });
+  assert.deepEqual(requests, [JSON.parse(JSON.stringify(expected))]);
 });
