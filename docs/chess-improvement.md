@@ -102,7 +102,7 @@ A second complete assisted game on the same day also beat Advanced, this time wi
 
 Both wins passed the stronger audit, which replayed all 61 final choices and the displayed engine continuations while checking complete legal-move coverage. All 66 automated tests and the extension build pass. The local combined audit is `data/diagnostics/assisted-validation.json`.
 
-The two complete assisted trials produced two wins. The seven latest rules-only trials produced zero wins and seven losses. These different methods must be reported separately. Two assisted games demonstrate another successful run, not a reliable win-rate estimate or a win against Maximum.
+The two original five-second assisted trials produced two wins. A later one-second trial also won, as detailed below. The seven latest rules-only trials produced zero wins and seven losses. These different methods must be reported separately. These few assisted games do not establish a reliable win rate or a win against Maximum.
 
 ## Proving a winning sacrifice without Stockfish
 
@@ -117,6 +117,26 @@ All 64 tests and the extension build pass, including checks that distinguish a f
 A subsequent full compact-review match against Advanced lost by checkmate after 36 Jev decisions. Every white move passed the final-choice, position, and history audit, with no external engine advice. The game and decision logs are under `data/runs/2026-09-19T23-31-15-620Z`. This brings the latest rules-only sequence to seven losses and zero wins. The sacrifice regression improved, but a full-game strength improvement remains unproven.
 
 The final sacrifice from the second assisted win was then replayed using compact-review with no engine advice. Jev independently selected `Qe8+`, and the bounded proof verified `Rxe8 Rxe8#` against every legal defense. This different position had not been used to tune the mate proof or prompts. The diagnostic took approximately 2.1 seconds and is recorded at `data/diagnostics/advanced-win-queen-sacrifice.json`. It verifies the sacrifice handling on another position, not an engine-free full-game win.
+
+## Decision latency
+
+The original two assisted wins averaged approximately 6.6 seconds per decision. Around 5.1 seconds was engine analysis. The assisted path also performed rules-only tactical calculations that its model request never used.
+
+Assisted decisions now skip those unused calculations, with a test confirming that the model request remains identical for the same engine analysis. Displayed variations are converted from the current board position instead of replaying the entire game for each candidate; the engine itself still receives the complete move history. Logs now separate preparation, engine analysis, model requests, and remaining processing time.
+
+The default search budget is now 1,000 milliseconds instead of 5,000. Eleven unique positions sampled evenly from the two recorded wins averaged 1,652 milliseconds, compared with their historical average of 6,787 milliseconds. All eleven selected the same move as before, followed the engine's first recommendation, and missed no mating score present in the saved reference. Average measured components were 12 milliseconds of preparation, 1,180 milliseconds of engine work, and 461 milliseconds of model-request time. The local results are in `data/latency/2026-09-20T05-06-38-293Z`.
+
+These observations are not a controlled latency study or an independent strength benchmark. The shorter search can change evaluations and playing strength. Set `STOCKFISH_MOVETIME_MS=5000` in the local environment to restore the original search budget. Existing explicit environment settings take precedence over the new default.
+
+A fresh full match with the new default beat Advanced with `25.Qxf7#`. Its 25 decisions averaged 1,581 milliseconds, with a median of 1,531 milliseconds and a maximum of 2,632 milliseconds on the first request. Average components were 8 milliseconds of preparation, 1,172 milliseconds of engine work, and 401 milliseconds of model-request time. The complete run took approximately 100 seconds, including startup and browser interaction. Every decision used the 1,000-millisecond search budget; complete search depths ranged from 9 to 13.
+
+All 25 choices followed the first engine recommendation and passed the full legal-move, continuation, position, history, and final-choice audit. The game, timing summary, and recording are under `data/runs/2026-09-20T05-08-06-951Z`, with timing details in `latency.json`. All 67 tests and the extension build pass. This is a verified fast assisted win, not evidence that every shorter search is equally strong.
+
+Replay another comparison with paid model calls:
+
+```sh
+node --env-file-if-exists=.env scripts/benchmark-latency.js --match data/runs/2026-09-19T23-20-25-772Z --match data/runs/2026-09-19T23-40-02-036Z --movetime 1000
+```
 
 ## Further experiments
 

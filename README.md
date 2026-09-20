@@ -4,7 +4,7 @@ A local chess.com bot-game player. Jev selects every move from the complete lega
 
 **Playing strength is experimental. A win against Maximum (3200) has not been established.** Reliable clicking and legal moves do not imply strong chess play.
 
-Two audited Stockfish-assisted Jev matches beat Advanced (1600), finishing with `32.Qg7#` and `29.Rxe8#`. Jev followed Stockfish's first recommendation on all 61 decisions. The seven latest engine-free compact-review trials all lost. See [the measured results](docs/chess-improvement.md) and the assisted command below; two wins do not establish a reliable win rate.
+Three audited Stockfish-assisted Jev matches beat Advanced (1600), finishing with `32.Qg7#`, `29.Rxe8#`, and `25.Qxf7#`. The latest used the faster one-second search budget and averaged 1.58 seconds per decision. Jev followed Stockfish's first recommendation on all 86 decisions. The seven latest engine-free compact-review trials all lost. See [the measured results](docs/chess-improvement.md) and the assisted command below; three wins do not establish a reliable win rate.
 
 ## Run automatically
 
