@@ -2,7 +2,7 @@
 
 A local chess.com bot-game player. Jev selects every move from the complete legal move list. The extension reads the visible board, asks the local service for Jev's decision, clicks that move, and waits for the opponent.
 
-**Playing strength is experimental. A win against Maximum (3200) has not been established.** Reliable clicking and legal moves do not imply strong chess play.
+**An audited Stockfish-assisted Jev match beat Maximum (3200) with `127.Qh5#`.** Decisions averaged 1.59 seconds using the one-second search budget. This establishes one assisted win, not a reliable win rate or engine-free playing strength.
 
 Three audited Stockfish-assisted Jev matches beat Advanced (1600), finishing with `32.Qg7#`, `29.Rxe8#`, and `25.Qxf7#`. The latest used the faster one-second search budget and averaged 1.58 seconds per decision. Jev followed Stockfish's first recommendation on all 86 decisions. The seven latest engine-free compact-review trials all lost. See [the measured results](docs/chess-improvement.md) and the assisted command below; three wins do not establish a reliable win rate.
 
@@ -119,11 +119,11 @@ Dashboard game cards and counters are held in memory and reset when the service 
 
 ## Current limitations
 
-- No verified win against Maximum. Jev may make strategically weak moves despite choosing only legal ones.
+- The verified Maximum win uses Stockfish advice. No engine-free Maximum win or reliable win rate has been established.
 - Start from a fresh standard position. Resuming is supported only when the same browser session has saved the game's history and the observed board is at most one legal move ahead.
 - Page changes, animations that never settle, navigation, covered squares, and unconfirmed clicks stop play instead of guessing.
 - The extension has a 150-move limit per run, and the service has its separate decision limit. The standalone full-game runner has no default cutoff.
-- Special moves are supported by the rules library. Live site behavior for castling, en passant, and the promotion picker still needs dedicated browser verification.
+- Castling and queen promotion have appeared in completed standalone matches. Live en passant and underpromotion still need dedicated browser verification.
 - Chess.com may change its markup or require manual site interaction. This is a local prototype, not an unattended hosted service.
 
 ## Verification
@@ -184,7 +184,7 @@ npm run attempt:win -- --opponent advanced --strategy compact-review --games 3
 
 Audit an existing completed match with `node scripts/audit-match.js data/runs/<timestamp>`. The audit checks the PGN result, every white decision's position and history, and each played move against Jev's final answer. It rejects incomplete games, substituted moves, and inconsistent results. A successful audit can confirm a loss or draw as well as a win; inspect `won`.
 
-## Engine-assisted Advanced matches
+## Engine-assisted matches
 
 Install the standalone Stockfish executable, then run the explicitly assisted strategy:
 
@@ -194,6 +194,12 @@ npm run play:advanced:assisted
 ```
 
 The equivalent command is `npm run play:advanced -- --strategy engine-review`. Stockfish evaluates every legal move locally using the full game history. Jev receives the ranking, score, and a legal continuation for each option, then makes the final choice. A choice below the engine's first recommendation receives one review; the final Jev answer is honored even if it still differs. No move is substituted or removed from the menu.
+
+To play Maximum with the same assisted strategy and recording:
+
+```sh
+npm run play -- --opponent maximum --strategy engine-review --4k
+```
 
 This materially changes the original experiment: any win is **Stockfish-assisted Jev**, not an engine-free Jev win. PGNs, summaries, decision logs, and audit output identify the assistance. Logs retain the engine version, search depth, recommended move, complete move evaluations, and Jev's actual answer. Engine failures stop the run rather than silently changing strategies.
 

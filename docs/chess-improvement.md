@@ -102,7 +102,7 @@ A second complete assisted game on the same day also beat Advanced, this time wi
 
 Both wins passed the stronger audit, which replayed all 61 final choices and the displayed engine continuations while checking complete legal-move coverage. All 66 automated tests and the extension build pass. The local combined audit is `data/diagnostics/assisted-validation.json`.
 
-The two original five-second assisted trials produced two wins. A later one-second trial also won, as detailed below. The seven latest rules-only trials produced zero wins and seven losses. These different methods must be reported separately. These few assisted games do not establish a reliable win rate or a win against Maximum.
+The two original five-second assisted trials produced two wins. A later one-second trial also won, as detailed below. The seven latest rules-only trials produced zero wins and seven losses. These different methods must be reported separately. These few Advanced games do not establish a reliable win rate; Maximum was tested separately below.
 
 ## Proving a winning sacrifice without Stockfish
 
@@ -137,6 +137,16 @@ Replay another comparison with paid model calls:
 ```sh
 node --env-file-if-exists=.env scripts/benchmark-latency.js --match data/runs/2026-09-19T23-20-25-772Z --match data/runs/2026-09-19T23-40-02-036Z --movetime 1000
 ```
+
+## Verified Maximum win
+
+On September 20, 2026, the fast assisted strategy beat Maximum (`Komodo25`) with `127.Qh5#`, for a result of `1-0`. The runner used `https://www.chess.com/play/computer/Komodo25`, Jev `jev-1.13.0`, and Stockfish 19 with the unchanged 1,000-millisecond search budget. The long endgame included `122.c8=Q` before the final mating sequence.
+
+All 127 played white moves matched Jev's final answer and Stockfish's first recommendation. The audit replayed the 253 plies, checked complete legal-move coverage, and validated every displayed engine continuation. Complete search depths ranged from 9 to 18, and no second-choice review was needed.
+
+Decisions averaged 1,592 milliseconds, with a median of 1,538 milliseconds and a maximum of 3,046 milliseconds. Average preparation, engine, and model-request times were 13, 1,128, and 451 milliseconds respectively. The run took approximately 466 seconds, including startup and browser interaction. Local artifacts are under `data/runs/2026-09-20T05-14-41-675Z`, including `game.pgn`, `decisions.jsonl`, `summary.json`, and `latency.json`.
+
+This is one verified Maximum win by the Stockfish-assisted system. It does not establish an engine-free Jev win, perfect play, or a reliable win rate against Maximum. No playing-code changes were needed after the preceding 67-test and build pass.
 
 ## Further experiments
 
